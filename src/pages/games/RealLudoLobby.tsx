@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../../firebase/config';
-import { useStore } from '../../store/useStore'; // Assuming Zustand store has user & wallet
+import { useAppStore } from '../../store/useStore';
+const { user, walletBalance } = useAppStore();
 import { deductEntryFee } from '../../firebase/wallet';
 import { createTable, joinTable, joinByCode } from '../../firebase/RealLudo';
 import { GameTable } from '../../types';
