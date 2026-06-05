@@ -9,8 +9,8 @@ import { deductEntryFee } from '../../firebase/wallet';
 import { createTable, joinTable, joinByCode } from '../../firebase/RealLudo';
 import { GameTable } from '../../types';
 import { AMOUNT_OPTIONS, calculatePrize } from '../../utils/RealHelpers';
-import GlassCard from '../../components/ui/GlassCard';
-import Button from '../../components/ui/Button';
+import { GlassCard } from '../../components/ui/GlassCard';
+import { Button } from '../../components/ui/Button';
 
 export default function LudoLobby() {
   const { user, walletBalance } = useStore(); // Adjust based on your store
