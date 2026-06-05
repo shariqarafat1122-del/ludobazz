@@ -370,3 +370,59 @@ export interface LudoTable {
   createdAt: any;
   updatedAt: any;
 }
+// ... existing types ...
+
+export type PlayerColor = 'red' | 'green';
+export type TokenState = 'home' | 'active' | 'finished';
+export type TableStatus = 'waiting' | 'playing' | 'finished';
+export type TableType = 'public' | 'private';
+
+export interface LudoToken {
+  id: string;
+  color: PlayerColor;
+  position: number; // -1 = home, 0-51 = board, 52-56 = home path, 57 = finished
+  state: TokenState;
+  index: number;
+}
+
+export interface LudoPlayer {
+  id: string;
+  name: string;
+  color: PlayerColor;
+  tokens: LudoToken[];
+  lives: number;
+  finishedTokens: number;
+  isOnline: boolean;
+}
+
+export interface GameTable {
+  tableId: string;
+  tableName: string;
+  type: TableType;
+  entryAmount: number;
+  prizePool: number;
+  platformCut: number;
+  winnerPrize: number;
+  creatorId: string;
+  creatorName: string;
+  player1Id: string | null;
+  player2Id: string | null;
+  player1Name: string | null;
+  player2Name: string | null;
+  status: TableStatus;
+  roomCode: string;
+  createdAt: number;
+}
+
+export interface LudoGameState {
+  gameId: string;
+  tableId: string;
+  players: LudoPlayer[];
+  currentTurn: PlayerColor;
+  diceValue: number;
+  hasRolled: boolean;
+  status: 'playing' | 'finished';
+  winnerId: string | null;
+  turnStartTime: number;
+  lastMoveTime: number;
+}
