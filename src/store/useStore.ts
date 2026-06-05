@@ -1,14 +1,27 @@
 import { create } from 'zustand';
 import { Notification } from '../types';
 
+// ✅ Add User interface
+interface User {
+  uid: string;
+  name: string;
+  email?: string;
+}
+
 interface AppState {
   notifications: Notification[];
   unreadCount: number;
   sidebarOpen: boolean;
   isProcessing: boolean;
+  // ✅ Add user & wallet
+  user: User | null;
+  walletBalance: number;
   setNotifications: (n: Notification[]) => void;
   setSidebarOpen: (open: boolean) => void;
   setIsProcessing: (p: boolean) => void;
+  // ✅ Add setters
+  setUser: (user: User | null) => void;
+  setWalletBalance: (balance: number) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -16,10 +29,14 @@ export const useAppStore = create<AppState>((set) => ({
   unreadCount: 0,
   sidebarOpen: false,
   isProcessing: false,
+  user: null,           // ✅ Added
+  walletBalance: 0,     // ✅ Added
   setNotifications: (notifications) =>
     set({ notifications, unreadCount: notifications.filter(n => !n.read).length }),
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
   setIsProcessing: (isProcessing) => set({ isProcessing }),
+  setUser: (user) => set({ user }),                          // ✅ Added
+  setWalletBalance: (walletBalance) => set({ walletBalance }), // ✅ Added
 }));
 
 interface GameState {
@@ -47,3 +64,6 @@ export const useGameStore = create<GameState>((set) => ({
   setMatchmakingQueueId: (matchmakingQueueId) => set({ matchmakingQueueId }),
   setGameRoomId: (gameRoomId) => set({ gameRoomId }),
 }));
+
+// ✅ Also export useStore as alias for useAppStore for backward compatibility
+export const useStore = useAppStore;
