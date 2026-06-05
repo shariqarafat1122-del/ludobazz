@@ -9,12 +9,15 @@ import {
   query,
   where,
   orderBy,
+  increment,
   getDocs,
   limit,
 } from 'firebase/firestore';
 import { db } from './config';
 import { Wallet, Transaction, TransactionType } from '../types';
 import { calculateUsableBalance, calculateTotalBalance } from '../utils/helpers';
+
+
 
 // ─── Get Wallet (one-time) ───────────────────────────────────────────────────
 
@@ -290,3 +293,23 @@ export const createDeposit = async (
     updatedAt: serverTimestamp(),
   });
 };
+
+// Add this to your existing wallet.ts
+export async function deductEntryFee(userId: string, amount: number): Promise<boolean> {
+  try {
+    await runTransaction(db, async (tx) => {
+      const wRef = doc(db, 'wallets', userId);
+      const wSnap = await tx.get(wRef);
+      if (!wSnap.exists() || (wSnap.data().balance || 0) < amount) throw new Error('Insufficient');
+      tx.update(wRef, { balance: increment(-amount) });
+    });
+    return true;
+  } catch { return false; }
+}
+
+export async function addWinningAmount(userId: string, amount: number) {
+  const wRef = doc(db, 'wallets', userId);
+  await runTransaction(db, async (tx) => {
+    tx.update(wRef, { balance: increment(amount) });
+  });
+}
