@@ -6,9 +6,9 @@ import { subscribeToTable, subscribeToGame, initGame, updateGameState } from '..
 import { addWinningAmount } from '../../firebase/wallet';
 import { LudoGameState, GameTable, PlayerColor } from '../../types';
 import { getMovableTokens, processMove, TURN_DURATION } from '../../utils/RealHelpers';
-import { LudoBoard } from '../../components/games/LudoBoard';
-import { LudoDice } from '../../components/games/LudoDice';
-import { GlassCard } from '../../components/ui/GlassCard';
+import LudoBoard  from '../../components/games/LudoBoard';
+import LudoDice from '../../components/games/LudoDice';
+import GlassCard from '../../components/ui/GlassCard';
 
 export default function LudoGame() {
   const { tableId } = useParams();
