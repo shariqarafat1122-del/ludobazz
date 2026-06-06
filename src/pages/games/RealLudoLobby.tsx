@@ -149,7 +149,7 @@ export default function RealLudoLobby() {
         selectedFee
       );
       toast.success('Table created!');
-      navigate(`/games/RealLudo/${gameId}`);
+      navigate(`/games/RealLudo/RealLudoGame/${gameId}`);
     } catch (e: any) {
       toast.error(e.message || 'Failed');
     } finally {
@@ -170,7 +170,7 @@ export default function RealLudoLobby() {
         name: user.name || 'Player',
         photoURL: user.photoURL || '',
       });
-      navigate(`/games/RealLudo/${game.id}`);
+      navigate(`/games/RealLudo/RealLudoGame/${game.id}`);
     } catch (e: any) {
       toast.error(e.message || 'Failed');
     } finally {
