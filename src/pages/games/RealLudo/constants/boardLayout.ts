@@ -37,7 +37,6 @@ export const TRACK: [number, number][] = [
   [8,1],[8,2],[8,3],[8,4],[8,5],
   // Into center
   [8,6],
-  console.log(TRACK.length);
 ];
 
 // Home stretch paths (toward center, 6 cells each)
