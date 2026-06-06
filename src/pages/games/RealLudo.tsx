@@ -935,7 +935,7 @@ const RealLudo: React.FC = () => {
         <div className="text-center">
           <div className="text-5xl mb-4">❌</div>
           <p className="text-white font-semibold">Game not found</p>
-          <button onClick={() => navigate('/ludo')} className="mt-4 text-indigo-400 underline">
+          <button onClick={() => navigate('/games/RealLudoLobby')} className="mt-4 text-indigo-400 underline">
             Back to Lobby
           </button>
         </div>
@@ -1109,7 +1109,7 @@ const RealLudo: React.FC = () => {
 
         {/* Back button */}
         <button
-          onClick={() => navigate('/ludo')}
+          onClick={() => navigate('/games/RealLudolobby')}
           className="mt-3 text-slate-600 text-xs text-center hover:text-slate-400 transition-colors"
         >
           ← Leave Game
@@ -1122,7 +1122,7 @@ const RealLudo: React.FC = () => {
           <WinnerScreen
             game={game}
             myUid={user?.uid || ''}
-            onExit={() => navigate('/ludo')}
+            onExit={() => navigate('/games/RealLudoLobby')}
           />
         )}
       </AnimatePresence>
