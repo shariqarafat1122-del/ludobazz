@@ -330,7 +330,7 @@ const RealLudoGame: React.FC = () => {
       style={{ background: 'linear-gradient(135deg, #070714, #0f172a)' }}>
       <div className="text-center">
         <motion.div
-          animate={{ rotate: 360 }}
+          animate={{ rotate: 180 }}
           transition={{ duration: 1.1, repeat: Infinity, ease: 'linear' }}
           className="text-5xl mb-3"
         >🎲</motion.div>
