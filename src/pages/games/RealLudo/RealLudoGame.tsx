@@ -175,9 +175,7 @@ const TokenOverlay: React.FC<TokenOverlayProps> = memo(({
     </div>
   );
 });
-
 TokenOverlay.displayName = 'TokenOverlay';
-export default TokenOverlay;
 
 // ─── Main Game Screen ─────────────────────────────────────────────────────────
 const RealLudoGame: React.FC = () => {
