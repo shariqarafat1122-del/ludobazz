@@ -6,9 +6,9 @@ import { subscribeToTable, subscribeToGame, initGame, updateGameState } from '..
 import { addWinningAmount } from '../../firebase/wallet';
 import { LudoGameState, GameTable, PlayerColor } from '../../types';
 import { getMovableTokens, processMove, TURN_DURATION } from '../../utils/RealHelpers';
-import LudoBoard  from '../../components/games/LudoBoard';
+import LudoBoard from '../../components/games/LudoBoard';
 import LudoDice from '../../components/games/LudoDice';
-import { GlassCard } from '../../components/ui/GlassCard';
+import GlassCard from '../../components/ui/GlassCard';
 
 export default function LudoGame() {
   const { tableId } = useParams();
@@ -29,21 +29,19 @@ export default function LudoGame() {
   const myPlayer = game?.players.find(p => p.color === myColor);
   const opponent = game?.players.find(p => p.color !== myColor);
 
-  // 1. Sync Table & Init Game
   useEffect(() => {
     if (!tableId) return;
     const unsubTable = subscribeToTable(tableId, async (t) => {
       if (t) {
         setTable(t);
         if (t.status === 'playing' && !game) {
-          const gId = await initGame(t);
+          await initGame(t);
         }
       }
     });
     return () => unsubTable();
   }, [tableId]);
 
-  // 2. Sync Game State
   useEffect(() => {
     if (!tableId) return;
     const gId = `game_${tableId}`;
@@ -53,15 +51,12 @@ export default function LudoGame() {
     return () => unsubGame();
   }, [tableId]);
 
-  // 3. 10-Second Timer & Lives Logic
   useEffect(() => {
     if (!game || game.status === 'finished') return;
-    
     const interval = setInterval(() => {
       const elapsed = (Date.now() - game.turnStartTime) / 1000;
       const remaining = Math.max(0, TURN_DURATION - elapsed);
       setTimeLeft(remaining);
-
       if (remaining <= 0 && isMyTurn && !game.hasRolled) {
         handleTimeExpired();
       }
@@ -73,16 +68,13 @@ export default function LudoGame() {
     if (!game || !myPlayer || !tableId) return;
     const gId = `game_${tableId}`;
     const newLives = myPlayer.lives - 1;
-
     if (newLives <= 0) {
-      // Lost all lives -> Opponent wins
       await updateGameState(gId, {
         status: 'finished',
         winnerId: opponent?.id || null,
         players: game.players.map(p => p.color === myColor ? { ...p, lives: 0 } : p)
       });
     } else {
-      // Lose 1 life, skip turn
       const nextTurn = myColor === 'red' ? 'green' : 'red';
       await updateGameState(gId, {
         currentTurn: nextTurn,
@@ -93,16 +85,13 @@ export default function LudoGame() {
     }
   };
 
-  // 4. Handle Dice Roll
   const handleRoll = async () => {
     if (!isMyTurn || rolling || game?.hasRolled || !game || !tableId) return;
     setRolling(true);
-    await new Promise(r => setTimeout(r, 1000)); // Animation time
+    await new Promise(r => setTimeout(r, 1000));
     const val = Math.floor(Math.random() * 6) + 1;
     await updateGameState(`game_${tableId}`, { diceValue: val, hasRolled: true });
     setRolling(false);
-
-    // Auto skip if no moves
     const movable = getMovableTokens(myPlayer!, val);
     if (movable.length === 0) {
       setTimeout(async () => {
@@ -112,28 +101,26 @@ export default function LudoGame() {
     }
   };
 
-  // 5. Handle Token Move
   const handleMove = async (tokenId: string) => {
     if (!isMyTurn || !game?.hasRolled || !game || !tableId || !user) return;
     const newState = processMove(game, user.uid, tokenId, game.diceValue);
     await updateGameState(`game_${tableId}`, newState);
   };
 
-  // 6. Handle Game End & Wallet Payout
   useEffect(() => {
     if (game?.status === 'finished' && game.winnerId === user?.uid && table) {
       addWinningAmount(user.uid, table.winnerPrize);
     }
   }, [game?.status]);
 
-  if (!table || !game || !myColor) return <div className="min-h-screen bg-[#0a0a1a] flex items-center justify-center text-white">Loading Game...</div>;
+  if (!table || !game || !myColor) {
+    return <div className="min-h-screen bg-[#0a0a1a] flex items-center justify-center text-white">Loading Game...</div>;
+  }
 
   const timerPercent = (timeLeft / TURN_DURATION) * 100;
 
   return (
     <div className="min-h-screen bg-[#0a0a1a] text-white flex flex-col max-w-md mx-auto p-2">
-      
-      {/* Top: Opponent Info */}
       <GlassCard className="p-3 mb-2 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center font-bold">{opponent?.name[0]}</div>
@@ -149,7 +136,6 @@ export default function LudoGame() {
         )}
       </GlassCard>
 
-      {/* Center: Ludo Board */}
       <div className="flex-1 flex items-center justify-center">
         <LudoBoard 
           gameState={game} 
@@ -159,7 +145,6 @@ export default function LudoGame() {
         />
       </div>
 
-      {/* Bottom: My Info & Controls */}
       <GlassCard className="p-3 mt-2 space-y-3">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -186,7 +171,6 @@ export default function LudoGame() {
         </div>
       </GlassCard>
 
-      {/* Game Over Modal */}
       {game.status === 'finished' && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
           <GlassCard className="w-full p-6 text-center space-y-4">
