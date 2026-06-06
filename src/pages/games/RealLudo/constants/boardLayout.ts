@@ -5,6 +5,11 @@ export const GRID = 15;
 export const CELL = 100 / GRID; // percentage per cell
 
 // Main track: 52 cells clockwise, index 0 = Red start
+console.log("Track Length", TRACK.length);
+
+TRACK.forEach((cell, i) => {
+  console.log(i, cell);
+});
 export const TRACK: [number, number][] = [
   // Row 6 going right (Red's row)
   [6,0],[6,1],[6,2],[6,3],[6,4],
