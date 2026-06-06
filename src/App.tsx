@@ -16,8 +16,6 @@ const PokerLobbyPage     = lazy(() => import('./pages/games/PokerLobby'));
 const ColorPrediction    = lazy(() => import('./pages/games/ColorPrediction').then(m => ({ default: m.ColorPrediction })));
 const LudoLobby          = lazy(() => import('./pages/games/LudoLobby'));
 const LudoGame           = lazy(() => import('./pages/games/LudoGame'));
-const RealLudoLobby = lazy(() => import('./pages/games/RealLudoLobby'));
-const RealLudo      = lazy(() => import('./pages/games/RealLudo/RealLudoGame'));
 const DiceGame           = lazy(() => import('./pages/games/DiceGame').then(m => ({ default: m.DiceGame })));
 
 // ─────────────────────────────────────────────
@@ -132,7 +130,7 @@ export default function App() {
                   <Route path="/games/color-prediction" element={<ColorPrediction />} />
                   <Route path="/games/DragonTiger"      element={<DragonTigerPage />} />
                   <Route path="/games/ludo"             element={<LudoLobby />} />
-                  <Route path="/games/RealLudoLobby"    element={<RealLudoLobby />} />
+          
 
                   {/* 🔐 Admin */}
                   <Route element={<AdminRoute />}>
