@@ -37,10 +37,10 @@ export const HOME_PATH = {
 
 // Yard (base) slot positions for each color
 export const YARD_SLOTS = {
-  red:    [[1,1],[1,3],[3,1],[3,3]] as [number,number][],
-  green:  [[1,11],[1,13],[3,11],[3,13]] as [number,number][],
-  yellow: [[11,11],[11,13],[13,11],[13,13]] as [number,number][],
-  blue:   [[11,1],[11,3],[13,1],[13,3]] as [number,number][],
+  red:    [[2,2],[2,4],[4,2],[4,4]],
+  green:  [[2,10],[2,12],[4,10],[4,12]],
+  yellow: [[10,10],[10,12],[12,10],[12,12]],
+  blue:   [[10,2],[10,4],[12,2],[12,4]],
 };
 
 // Safe squares (absolute track indices)
