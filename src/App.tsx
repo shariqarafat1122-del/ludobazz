@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
@@ -6,34 +6,82 @@ import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute, AdminRoute, PublicRoute } from './components/ProtectedRoute';
 import { MainLayout } from './components/Layout/MainLayout';
 
-import DragonTigerPage from './pages/games/DragonTiger';
-import AndarBaharPage from './pages/games/AndarBahar';
-import PokerGamePage from './pages/games/PokerGame';
-import PokerLobbyPage from './pages/games/PokerLobby';
-import { ColorPrediction } from './pages/games/ColorPrediction';
-import LudoLobby from './pages/games/LudoLobby';
-import LudoGame from './pages/games/LudoGame';
-import RealLudoLobby from './pages/games/RealLudoLobby'; // ya jahan file rakhi ho
-import RealLudo from './pages/games/RealLudo';
+// ─────────────────────────────────────────────
+// 🎮 Game Pages (Lazy)
+// ─────────────────────────────────────────────
+const DragonTigerPage    = lazy(() => import('./pages/games/DragonTiger'));
+const AndarBaharPage     = lazy(() => import('./pages/games/AndarBahar'));
+const PokerGamePage      = lazy(() => import('./pages/games/PokerGame'));
+const PokerLobbyPage     = lazy(() => import('./pages/games/PokerLobby'));
+const ColorPrediction    = lazy(() => import('./pages/games/ColorPrediction').then(m => ({ default: m.ColorPrediction })));
+const LudoLobby          = lazy(() => import('./pages/games/LudoLobby'));
+const LudoGame           = lazy(() => import('./pages/games/LudoGame'));
+const RealLudoLobby      = lazy(() => import('./pages/games/RealLudoLobby'));
+const RealLudo           = lazy(() => import('./pages/games/RealLudo'));
+const DiceGame           = lazy(() => import('./pages/games/DiceGame').then(m => ({ default: m.DiceGame })));
 
+// ─────────────────────────────────────────────
+// 📄 Main Pages (Lazy)
+// ─────────────────────────────────────────────
+const Login              = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
+const Signup             = lazy(() => import('./pages/Signup').then(m => ({ default: m.Signup })));
+const Dashboard          = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
+const Wallet             = lazy(() => import('./pages/Wallet').then(m => ({ default: m.Wallet })));
+const AddMoney           = lazy(() => import('./pages/AddMoney').then(m => ({ default: m.AddMoney })));
+const Withdrawal         = lazy(() => import('./pages/Withdrawal').then(m => ({ default: m.Withdrawal })));
+const WithdrawalHistory  = lazy(() => import('./pages/WithdrawalHistory').then(m => ({ default: m.WithdrawalHistory })));
+const TransactionHistory = lazy(() => import('./pages/TransactionHistory').then(m => ({ default: m.TransactionHistory })));
+const Referral           = lazy(() => import('./pages/Referral').then(m => ({ default: m.Referral })));
+const Profile            = lazy(() => import('./pages/Profile').then(m => ({ default: m.Profile })));
+const Notifications      = lazy(() => import('./pages/Notifications').then(m => ({ default: m.Notifications })));
+const AdminDashboard     = lazy(() => import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const Matchmaking        = lazy(() => import('./pages/Matchmaking').then(m => ({ default: m.Matchmaking })));
+const GameRoom           = lazy(() => import('./pages/GameRoom').then(m => ({ default: m.GameRoom })));
 
-// Pages
-import { Login } from './pages/Login';
-import { Signup } from './pages/Signup';
-import { Dashboard } from './pages/Dashboard';
-import { Wallet } from './pages/Wallet';
-import { AddMoney } from './pages/AddMoney';
-import { Withdrawal } from './pages/Withdrawal';
-import { WithdrawalHistory } from './pages/WithdrawalHistory';
-import { TransactionHistory } from './pages/TransactionHistory';
-import { Referral } from './pages/Referral';
-import { Profile } from './pages/Profile';
-import { Notifications } from './pages/Notifications';
-import { AdminDashboard } from './pages/AdminDashboard';
-import { Matchmaking } from './pages/Matchmaking';
-import { GameRoom } from './pages/GameRoom';
-import { DiceGame } from './pages/games/DiceGame';
+// ─────────────────────────────────────────────
+// ⏳ Global Loading Fallback
+// ─────────────────────────────────────────────
+function PageLoader() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        background: '#0d0620',
+        gap: '16px',
+      }}
+    >
+      {/* Spinner */}
+      <div
+        style={{
+          width: '48px',
+          height: '48px',
+          border: '4px solid rgba(255,255,255,0.1)',
+          borderTop: '4px solid #a855f7',
+          borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite',
+        }}
+      />
+      <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>
+        Loading...
+      </p>
 
+      {/* Inline keyframe for spinner */}
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// ⚙️ QueryClient
+// ─────────────────────────────────────────────
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -43,59 +91,68 @@ const queryClient = new QueryClient({
   },
 });
 
+// ─────────────────────────────────────────────
+// 🚀 App
+// ─────────────────────────────────────────────
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <BrowserRouter>
-          <Routes>
-            {/* Public routes */}
-            <Route element={<PublicRoute />}>
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-            </Route>
 
-            {/* Protected routes — WITH MainLayout (Header + Sidebar) */}
-            <Route element={<ProtectedRoute />}>
-              <Route element={<MainLayout />}>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/wallet" element={<Wallet />} />
-                <Route path="/add-money" element={<AddMoney />} />
-                <Route path="/withdrawal" element={<Withdrawal />} />
-                <Route path="/withdrawal-history" element={<WithdrawalHistory />} />
-                <Route path="/transactions" element={<TransactionHistory />} />
-                <Route path="/referral" element={<Referral />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/notifications" element={<Notifications />} />
-                <Route path="/matchmaking" element={<Matchmaking />} />
-                <Route path="/game-room/:roomId" element={<GameRoom />} />
-                <Route path="/games/poker" element={<PokerLobbyPage />} />
-                <Route path="/games/andar-bahar" element={<AndarBaharPage />} />
-                <Route path="/games/dice" element={<DiceGame />} />
-                <Route path="/games/color-prediction" element={<ColorPrediction />} />
-                <Route path="/games/DragonTiger" element={<DragonTigerPage />} />
-                <Route path="/games/ludo" element={<LudoLobby />} />
-                <Route path="/games/RealLudoLobby" element={<RealLudoLobby />} />
-                
+          {/* ✅ Suspense wraps ALL routes */}
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
 
-                
-                {/* Admin routes */}
-                <Route element={<AdminRoute />}>
-                  <Route path="/admin" element={<AdminDashboard />} />
-                </Route>
+              {/* ── Public ── */}
+              <Route element={<PublicRoute />}>
+                <Route path="/login"  element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
               </Route>
 
-              {/* Game pages — WITHOUT MainLayout (no Header/Sidebar) */}
-              <Route path="/game-room/:roomId" element={<GameRoom />} />
-              <Route path="/games/poker/:tableId" element={<PokerGamePage />} />
-              <Route path="/games/ludo/:tableId" element={<LudoGame />} />
-              <Route path="/games/RealLudo/:gameId" element={<RealLudo />} />
-            </Route>
+              {/* ── Protected + MainLayout (Header + Sidebar) ── */}
+              <Route element={<ProtectedRoute />}>
+                <Route element={<MainLayout />}>
+                  <Route path="/dashboard"          element={<Dashboard />} />
+                  <Route path="/wallet"             element={<Wallet />} />
+                  <Route path="/add-money"          element={<AddMoney />} />
+                  <Route path="/withdrawal"         element={<Withdrawal />} />
+                  <Route path="/withdrawal-history" element={<WithdrawalHistory />} />
+                  <Route path="/transactions"       element={<TransactionHistory />} />
+                  <Route path="/referral"           element={<Referral />} />
+                  <Route path="/profile"            element={<Profile />} />
+                  <Route path="/notifications"      element={<Notifications />} />
+                  <Route path="/matchmaking"        element={<Matchmaking />} />
+                  <Route path="/game-room/:roomId"  element={<GameRoom />} />
 
-            {/* Default redirects */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
+                  {/* 🎮 Game Lobbies */}
+                  <Route path="/games/poker"            element={<PokerLobbyPage />} />
+                  <Route path="/games/andar-bahar"      element={<AndarBaharPage />} />
+                  <Route path="/games/dice"             element={<DiceGame />} />
+                  <Route path="/games/color-prediction" element={<ColorPrediction />} />
+                  <Route path="/games/DragonTiger"      element={<DragonTigerPage />} />
+                  <Route path="/games/ludo"             element={<LudoLobby />} />
+                  <Route path="/games/RealLudoLobby"    element={<RealLudoLobby />} />
+
+                  {/* 🔐 Admin */}
+                  <Route element={<AdminRoute />}>
+                    <Route path="/admin" element={<AdminDashboard />} />
+                  </Route>
+                </Route>
+
+                {/* 🎮 Full-screen Game Pages (NO Layout) */}
+                <Route path="/games/poker/:tableId"      element={<PokerGamePage />} />
+                <Route path="/games/ludo/:tableId"       element={<LudoGame />} />
+                <Route path="/games/RealLudo/:gameId"    element={<RealLudo />} />
+              </Route>
+
+              {/* ── Redirects ── */}
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+
+            </Routes>
+          </Suspense>
+
         </BrowserRouter>
 
         <Toaster
@@ -108,12 +165,8 @@ export default function App() {
               borderRadius: '12px',
               fontSize: '14px',
             },
-            success: {
-              iconTheme: { primary: '#22c55e', secondary: '#fff' },
-            },
-            error: {
-              iconTheme: { primary: '#ef4444', secondary: '#fff' },
-            },
+            success: { iconTheme: { primary: '#22c55e', secondary: '#fff' } },
+            error:   { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
           }}
         />
       </AuthProvider>
