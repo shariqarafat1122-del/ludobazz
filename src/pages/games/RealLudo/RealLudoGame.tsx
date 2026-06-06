@@ -66,16 +66,14 @@ const TokenOverlay: React.FC<TokenOverlayProps> = memo(({
       { ps: game.player2, slot: 'player2' },
     ];
 
-    players.forEach(({ ps }) => {
-      if (!ps) return;
-      // Track tokens at yard: assign slot indices to base tokens
-      const baseTokens = ps.tokens.filter(t => t.position === TOKEN_BASE_POSITION);
-      let baseIdx = 0;
-      ps.tokens.forEach(token => {
-        const si = token.position === TOKEN_BASE_POSITION ? baseIdx++ : 0;
-        addToken(token, ps.color as LudoColor, ps.uid, si);
-      });
-    });
+   players.forEach(({ ps }) => {
+  if (!ps) return;
+  let baseIdx = 0;
+  ps.tokens.forEach(token => {
+    const si = token.position === TOKEN_BASE_POSITION ? baseIdx++ : 0;
+    addToken(token, ps.color as LudoColor, ps.uid, si);
+  });
+});
 
     return map;
   }, [game.player1, game.player2]);
