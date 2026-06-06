@@ -7,36 +7,21 @@ export const CELL = 100 / GRID; // percentage per cell
 // Main track: 52 cells clockwise, index 0 = Red start
 
 export const TRACK: [number, number][] = [
-  // Row 6 going right (Red's row)
   [6,0],[6,1],[6,2],[6,3],[6,4],
-  // Col 5 going up
   [5,5],[4,5],[3,5],[2,5],[1,5],[0,5],
-  // Top middle
-  [0,6],
-  // Col 8 going down (Green entry)
-  [0,8],[1,8],[2,8],[3,8],[4,8],[5,8],
-  // Row 5 corner
+  [0,6],[0,7],[0,8],  // ← [0,7] add kiya
+  [1,8],[2,8],[3,8],[4,8],[5,8],
   [5,9],
-  // Row 6 going right
   [6,9],[6,10],[6,11],[6,12],[6,13],[6,14],
-  // Row 8 going left (Green's row)
   [8,14],[8,13],[8,12],[8,11],[8,10],[8,9],
-  // Row 9 corner
   [9,9],
-  // Col 8 going down
   [9,8],[10,8],[11,8],[12,8],[13,8],[14,8],
-  // Bottom middle
-  [14,6],
-  // Col 6 going up
+  [14,7],[14,6],  // ← [14,7] bhi check karo
   [13,6],[12,6],[11,6],[10,6],[9,6],
-  // Row 9 going left
   [9,5],[9,4],[9,3],[9,2],[9,1],[9,0],
-  // Left edge
   [8,0],
-  // Row 8 going right
   [8,1],[8,2],[8,3],[8,4],[8,5],
-  // Into center
-  [8,6],
+  [7,5],  // ← Red home stretch entry point
 ];
 console.log("TRACK LENGTH =", TRACK.length);
 console.log(
