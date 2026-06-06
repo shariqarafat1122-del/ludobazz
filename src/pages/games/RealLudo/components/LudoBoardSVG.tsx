@@ -1,26 +1,18 @@
-// components/LudoBoardSVG.tsx - CLEAN 2-PLAYER BOARD
-// Layout: Red = bottom-left, Green = top-right
+
+// components/LudoBoardSVG.tsx
+// Red  = TOP-LEFT      (rows 0-5,  cols 0-5)
+// Green = BOTTOM-RIGHT (rows 9-14, cols 9-14)
+// Dark unused: TOP-RIGHT and BOTTOM-LEFT
 
 import React, { memo } from 'react';
-import { GRID, CELL, TRACK, HOME_PATH, YARD_SLOTS, SAFE_CELLS } from '../constants/boardlayout';
+import { GRID, CELL, TRACK, HOME_PATH, YARD_SLOTS, SAFE_CELLS } from './constants/boardlayout';
 
-const C = CELL; // 6.6667
-
+const C = CELL;
 const p = (v: number) => `${v}%`;
 
 const CLR = {
-  red: {
-    mid:   '#ef4444',
-    light: '#fca5a5',
-    dark:  '#7f1d1d',
-    path:  '#fecaca',
-  },
-  green: {
-    mid:   '#22c55e',
-    light: '#86efac',
-    dark:  '#14532d',
-    path:  '#bbf7d0',
-  },
+  red:   { mid: '#ef4444', light: '#fca5a5', dark: '#7f1d1d', path: '#fecaca' },
+  green: { mid: '#22c55e', light: '#86efac', dark: '#14532d', path: '#bbf7d0' },
 };
 
 const LudoBoardSVG: React.FC = memo(() => {
@@ -34,14 +26,14 @@ const LudoBoardSVG: React.FC = memo(() => {
       const x = c * C;
       const y = r * C;
 
-      // ── Skip the 4 corner 6×6 zones and center 3×3 ──
-      const isTLZone    = r <= 5  && c <= 5;   // top-left    (dark, unused)
-      const isGreenYard = r <= 5  && c >= 9;   // top-right   (GREEN yard)
-      const isRedYard   = r >= 9  && c <= 5;   // bottom-left (RED yard)
-      const isBRZone    = r >= 9  && c >= 9;   // bottom-right (dark, unused)
+      // Skip the 4 corner zones and center
+      const isRedYard   = r <= 5  && c <= 5;   // TOP-LEFT    = Red yard
+      const isTRZone    = r <= 5  && c >= 9;   // TOP-RIGHT   = dark unused
+      const isBLZone    = r >= 9  && c <= 5;   // BOTTOM-LEFT = dark unused
+      const isGreenYard = r >= 9  && c >= 9;   // BOTTOM-RIGHT = Green yard
       const isCenter    = r >= 6  && r <= 8 && c >= 6 && c <= 8;
 
-      if (isTLZone || isGreenYard || isRedYard || isBRZone || isCenter) continue;
+      if (isRedYard || isTRZone || isBLZone || isGreenYard || isCenter) continue;
 
       const isRedPath   = HOME_PATH.red.some(([hr, hc]) => hr === r && hc === c);
       const isGreenPath = HOME_PATH.green.some(([hr, hc]) => hr === r && hc === c);
@@ -57,14 +49,12 @@ const LudoBoardSVG: React.FC = memo(() => {
         <g key={`cell-${r}-${c}`}>
           <rect x={p(x)} y={p(y)} width={p(C)} height={p(C)}
             fill={fill} stroke="rgba(0,0,0,0.12)" strokeWidth="0.08" />
-          {/* Bevel highlights */}
           <rect x={p(x+0.06)} y={p(y+0.06)} width={p(C-0.12)} height={p(0.45)}
             fill="rgba(255,255,255,0.45)" />
           <rect x={p(x+0.06)} y={p(y+0.06)} width={p(0.45)} height={p(C-0.12)}
             fill="rgba(255,255,255,0.2)" />
           <rect x={p(x+0.06)} y={p(y+C-0.5)} width={p(C-0.12)} height={p(0.45)}
             fill="rgba(0,0,0,0.1)" />
-
           {isSafe && (
             <text x={p(x+C/2)} y={p(y+C/2+1.0)} textAnchor="middle"
               fontSize={p(C*0.52)}
@@ -78,7 +68,7 @@ const LudoBoardSVG: React.FC = memo(() => {
           {isGreenPath && !isSafe && (
             <text x={p(x+C/2)} y={p(y+C/2+0.9)} textAnchor="middle"
               fontSize={p(C*0.45)} fill={CLR.green.dark} opacity="0.4"
-              transform={`rotate(180,${x+C/2},${y+C/2})`}>›</text>
+              transform={`rotate(180,${x+C/2},${y+C/2})`}>‹</text>
           )}
         </g>
       );
@@ -90,12 +80,12 @@ const LudoBoardSVG: React.FC = memo(() => {
       style={{ width:'100%', height:'100%', display:'block' }}
       shapeRendering="geometricPrecision">
       <defs>
-        <radialGradient id="redYard" cx="30%" cy="70%" r="75%">
+        <radialGradient id="redYard" cx="30%" cy="30%" r="75%">
           <stop offset="0%"   stopColor={CLR.red.light} />
           <stop offset="45%"  stopColor={CLR.red.mid} />
           <stop offset="100%" stopColor={CLR.red.dark} />
         </radialGradient>
-        <radialGradient id="greenYard" cx="70%" cy="30%" r="75%">
+        <radialGradient id="greenYard" cx="70%" cy="70%" r="75%">
           <stop offset="0%"   stopColor={CLR.green.light} />
           <stop offset="45%"  stopColor={CLR.green.mid} />
           <stop offset="100%" stopColor={CLR.green.dark} />
@@ -104,7 +94,7 @@ const LudoBoardSVG: React.FC = memo(() => {
           <stop offset="0%"   stopColor="rgba(255,255,255,0.3)" />
           <stop offset="100%" stopColor="rgba(0,0,0,0.2)" />
         </radialGradient>
-        <radialGradient id="centerBg" cx="50%" cy="40%" r="70%">
+        <radialGradient id="centerBg" cx="50%" cy="50%" r="70%">
           <stop offset="0%"   stopColor="#1e1e3a" />
           <stop offset="100%" stopColor="#0a0a1a" />
         </radialGradient>
@@ -148,58 +138,22 @@ const LudoBoardSVG: React.FC = memo(() => {
       {/* TRACK CELLS */}
       {cells}
 
-      {/* ══ TOP-LEFT: dark unused zone ══ */}
-      <rect x={p(0)} y={p(0)} width={p(C*6)} height={p(C*6)} fill="#0d0d0d" />
-      <rect x={p(0.2)} y={p(0.2)} width={p(C*6-0.4)} height={p(C*6-0.4)}
-        fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.05)" strokeWidth="0.12" />
-
-      {/* ══ GREEN YARD: top-right (rows 0–5, cols 9–14) ══ */}
-      <rect x={p(C*9)} y={p(0)} width={p(C*6)} height={p(C*6)}
-        fill="url(#greenYard)" filter="url(#yardGlow)" />
-      <rect x={p(C*9+0.2)} y={p(0.2)} width={p(C*6-0.4)} height={p(1.4)}
-        fill="rgba(255,255,255,0.16)" rx="0.5" />
-      <rect x={p(C*9.5)} y={p(C*0.5)} width={p(C*5)} height={p(C*5)}
-        rx="2%" fill="url(#innerBox)" stroke="rgba(255,255,255,0.5)" strokeWidth="0.2" />
-      <rect x={p(C*9.65)} y={p(C*0.65)} width={p(C*4.7)} height={p(0.9)}
-        fill="rgba(255,255,255,0.26)" rx="0.5%" />
-
-      {/* Green yard slots (rows 1,3 cols 10,12) */}
-      {YARD_SLOTS.green.map(([sr, sc], i) => {
-        const sx = sc*C + C/2;
-        const sy = sr*C + C/2;
-        return (
-          <g key={`gs-${i}`}>
-            <circle cx={p(sx)} cy={p(sy+0.4)} r={p(C*0.38)}
-              fill="rgba(0,0,0,0.35)" filter="url(#slotInset)" />
-            <circle cx={p(sx)} cy={p(sy)} r={p(C*0.38)}
-              fill="rgba(0,0,0,0.25)" stroke="rgba(255,255,255,0.15)" strokeWidth="0.15" />
-            <circle cx={p(sx)} cy={p(sy)} r={p(C*0.3)} fill="url(#yardSlotGreen)" />
-            <path d={`M ${sx-C*0.22},${sy-C*0.16} A ${C*0.3},${C*0.3} 0 0,1 ${sx+C*0.22},${sy-C*0.16}`}
-              fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.18" />
-          </g>
-        );
-      })}
-
-      {/* ══ RED YARD: bottom-left (rows 9–14, cols 0–5) ══ */}
-      <rect x={p(0)} y={p(C*9)} width={p(C*6)} height={p(C*6)}
+      {/* ══ RED YARD — TOP-LEFT (rows 0-5, cols 0-5) ══ */}
+      <rect x={p(0)} y={p(0)} width={p(C*6)} height={p(C*6)}
         fill="url(#redYard)" filter="url(#yardGlow)" />
-      <rect x={p(0.2)} y={p(C*9+0.2)} width={p(C*6-0.4)} height={p(1.4)}
+      <rect x={p(0.2)} y={p(0.2)} width={p(C*6-0.4)} height={p(1.4)}
         fill="rgba(255,255,255,0.18)" rx="0.5" />
-      <rect x={p(C*0.5)} y={p(C*9.5)} width={p(C*5)} height={p(C*5)}
+      <rect x={p(C*0.5)} y={p(C*0.5)} width={p(C*5)} height={p(C*5)}
         rx="2%" fill="url(#innerBox)" stroke="rgba(255,255,255,0.5)" strokeWidth="0.2" />
-      <rect x={p(C*0.65)} y={p(C*9.65)} width={p(C*4.7)} height={p(0.9)}
+      <rect x={p(C*0.65)} y={p(C*0.65)} width={p(C*4.7)} height={p(0.9)}
         fill="rgba(255,255,255,0.28)" rx="0.5%" />
-
-      {/* Red yard slots (rows 10,12 cols 1,3) — matches YARD_SLOTS.red */}
+      {/* Red slots */}
       {YARD_SLOTS.red.map(([sr, sc], i) => {
-        const sx = sc*C + C/2;
-        const sy = sr*C + C/2;
+        const sx = sc*C + C/2, sy = sr*C + C/2;
         return (
           <g key={`rs-${i}`}>
-            <circle cx={p(sx)} cy={p(sy+0.4)} r={p(C*0.38)}
-              fill="rgba(0,0,0,0.35)" filter="url(#slotInset)" />
-            <circle cx={p(sx)} cy={p(sy)} r={p(C*0.38)}
-              fill="rgba(0,0,0,0.25)" stroke="rgba(255,255,255,0.15)" strokeWidth="0.15" />
+            <circle cx={p(sx)} cy={p(sy+0.4)} r={p(C*0.38)} fill="rgba(0,0,0,0.35)" filter="url(#slotInset)" />
+            <circle cx={p(sx)} cy={p(sy)} r={p(C*0.38)} fill="rgba(0,0,0,0.25)" stroke="rgba(255,255,255,0.15)" strokeWidth="0.15" />
             <circle cx={p(sx)} cy={p(sy)} r={p(C*0.3)} fill="url(#yardSlotRed)" />
             <path d={`M ${sx-C*0.22},${sy-C*0.16} A ${C*0.3},${C*0.3} 0 0,1 ${sx+C*0.22},${sy-C*0.16}`}
               fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.18" />
@@ -207,32 +161,53 @@ const LudoBoardSVG: React.FC = memo(() => {
         );
       })}
 
-      {/* ══ BOTTOM-RIGHT: dark unused zone ══ */}
-      <rect x={p(C*9)} y={p(C*9)} width={p(C*6)} height={p(C*6)} fill="#0d0d0d" />
-      <rect x={p(C*9+0.2)} y={p(C*9+0.2)} width={p(C*6-0.4)} height={p(C*6-0.4)}
+      {/* ══ TOP-RIGHT DARK ZONE (rows 0-5, cols 9-14) ══ */}
+      <rect x={p(C*9)} y={p(0)} width={p(C*6)} height={p(C*6)} fill="#0d0d0d" />
+      <rect x={p(C*9+0.2)} y={p(0.2)} width={p(C*6-0.4)} height={p(C*6-0.4)}
         fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.05)" strokeWidth="0.12" />
+
+      {/* ══ BOTTOM-LEFT DARK ZONE (rows 9-14, cols 0-5) ══ */}
+      <rect x={p(0)} y={p(C*9)} width={p(C*6)} height={p(C*6)} fill="#0d0d0d" />
+      <rect x={p(0.2)} y={p(C*9+0.2)} width={p(C*6-0.4)} height={p(C*6-0.4)}
+        fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.05)" strokeWidth="0.12" />
+
+      {/* ══ GREEN YARD — BOTTOM-RIGHT (rows 9-14, cols 9-14) ══ */}
+      <rect x={p(C*9)} y={p(C*9)} width={p(C*6)} height={p(C*6)}
+        fill="url(#greenYard)" filter="url(#yardGlow)" />
+      <rect x={p(C*9+0.2)} y={p(C*9+0.2)} width={p(C*6-0.4)} height={p(1.4)}
+        fill="rgba(255,255,255,0.16)" rx="0.5" />
+      <rect x={p(C*9.5)} y={p(C*9.5)} width={p(C*5)} height={p(C*5)}
+        rx="2%" fill="url(#innerBox)" stroke="rgba(255,255,255,0.5)" strokeWidth="0.2" />
+      <rect x={p(C*9.65)} y={p(C*9.65)} width={p(C*4.7)} height={p(0.9)}
+        fill="rgba(255,255,255,0.26)" rx="0.5%" />
+      {/* Green slots */}
+      {YARD_SLOTS.green.map(([sr, sc], i) => {
+        const sx = sc*C + C/2, sy = sr*C + C/2;
+        return (
+          <g key={`gs-${i}`}>
+            <circle cx={p(sx)} cy={p(sy+0.4)} r={p(C*0.38)} fill="rgba(0,0,0,0.35)" filter="url(#slotInset)" />
+            <circle cx={p(sx)} cy={p(sy)} r={p(C*0.38)} fill="rgba(0,0,0,0.25)" stroke="rgba(255,255,255,0.15)" strokeWidth="0.15" />
+            <circle cx={p(sx)} cy={p(sy)} r={p(C*0.3)} fill="url(#yardSlotGreen)" />
+            <path d={`M ${sx-C*0.22},${sy-C*0.16} A ${C*0.3},${C*0.3} 0 0,1 ${sx+C*0.22},${sy-C*0.16}`}
+              fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.18" />
+          </g>
+        );
+      })}
 
       {/* ══ CENTER 3×3 ══ */}
       <rect x={p(C*6)} y={p(C*6)} width={p(C*3)} height={p(C*3)} fill="url(#centerBg)" />
-
-      {/* Red triangle — left side, pointing toward bottom-left (red yard) */}
+      {/* Red triangle — top-left pointing to red yard */}
       <polygon
-        points={`${p(C*6)},${p(C*6)} ${p(C*7.5)},${p(C*7.5)} ${p(C*6)},${p(C*9)}`}
-        fill={CLR.red.mid} opacity="0.88"
-      />
-      {/* Green triangle — right side, pointing toward top-right (green yard) */}
+        points={`${p(C*6)},${p(C*6)} ${p(C*7.5)},${p(C*7.5)} ${p(C*9)},${p(C*6)}`}
+        fill={CLR.red.mid} opacity="0.88" />
+      {/* Green triangle — bottom-right pointing to green yard */}
       <polygon
-        points={`${p(C*9)},${p(C*6)} ${p(C*7.5)},${p(C*7.5)} ${p(C*9)},${p(C*9)}`}
-        fill={CLR.green.mid} opacity="0.88"
-      />
-
-      {/* Center dividers */}
+        points={`${p(C*6)},${p(C*9)} ${p(C*7.5)},${p(C*7.5)} ${p(C*9)},${p(C*9)}`}
+        fill={CLR.green.mid} opacity="0.88" />
       <line x1={p(C*6)} y1={p(C*7.5)} x2={p(C*9)} y2={p(C*7.5)}
         stroke="rgba(255,255,255,0.1)" strokeWidth="0.1" />
       <line x1={p(C*7.5)} y1={p(C*6)} x2={p(C*7.5)} y2={p(C*9)}
         stroke="rgba(255,255,255,0.1)" strokeWidth="0.1" />
-
-      {/* Center star */}
       <circle cx={p(C*7.5)} cy={p(C*7.5)} r={p(C*0.7)} fill="rgba(0,0,0,0.45)" />
       <circle cx={p(C*7.5)} cy={p(C*7.5)} r={p(C*0.65)}
         fill="none" stroke="rgba(255,215,0,0.4)" strokeWidth="0.18" />
@@ -252,8 +227,6 @@ const LudoBoardSVG: React.FC = memo(() => {
       {/* INNER BORDER */}
       <rect x="1.5%" y="1.5%" width="97%" height="97%"
         rx="1.5%" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="0.2" />
-
-      {/* Corner dots */}
       {[[2,2],[98,2],[2,98],[98,98]].map(([x,y],i) => (
         <circle key={`cd-${i}`} cx={p(x)} cy={p(y)} r={p(0.5)} fill="rgba(255,255,255,0.2)" />
       ))}
@@ -263,4 +236,3 @@ const LudoBoardSVG: React.FC = memo(() => {
 
 LudoBoardSVG.displayName = 'LudoBoardSVG';
 export default LudoBoardSVG;
-        
