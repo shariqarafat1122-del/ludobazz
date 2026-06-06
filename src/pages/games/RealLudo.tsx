@@ -23,7 +23,7 @@ import {
   getAbsolutePosition,
   TOKEN_BASE_POSITION,
   TOKEN_HOME_POSITION,
-} from '../../RealLudo';
+} from '../../firebase/RealLudo';
 
 // ─── Board Layout ─────────────────────────────────────────────────────────────
 // Standard Ludo board is 15x15 grid. We map each of the 52 track cells
