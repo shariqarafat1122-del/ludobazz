@@ -4,14 +4,14 @@ import React, {
 } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../../context/AuthContext';
 import {
   LudoGame, LudoToken, LudoPlayerState, PlayerSlot,
   subscribeLudoGame, rollDice, moveTokenOnBoard,
   skipTurn, updatePlayerOnline, forfeitGame,
   getMovableTokens, getAbsolutePosition,
   TOKEN_BASE_POSITION, TOKEN_HOME_POSITION, SAFE_POSITIONS,
-} from '../../firebase/RealLudo';
+} from '../../../firebase/RealLudo';
 import {
   GRID, CELL, TRACK, HOME_PATH, YARD_SLOTS, SAFE_CELLS,
   COLOR_THEME, LudoColor, toPercent, getTokenCoord, getAbsIdx,
