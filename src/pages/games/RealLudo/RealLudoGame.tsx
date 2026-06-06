@@ -34,148 +34,141 @@ interface TokenOverlayProps {
   onTokenClick: (color: LudoColor, tokenId: number) => void;
 }
 
+interface TokenInfo {
+  token: LudoToken;
+  color: LudoColor;
+  uid: string;
+}
+
+// Small offset for stacked tokens in same cell
+const STACK_OFFSETS = [
+  { dx: 0,    dy: 0    },
+  { dx: 1.5,  dy: -1.5 },
+  { dx: -1.5, dy: 1.5  },
+  { dx: 1.5,  dy: 1.5  },
+];
+
 const TokenOverlay: React.FC<TokenOverlayProps> = memo(({
   game, myColor, movableIds, boardRef, onTokenClick,
 }) => {
-  // Group all tokens by cell (key = "x%-y%")
-  type TokenInfo = {
-    token: LudoToken;
-    color: LudoColor;
-    uid: string;
-  };
+  const [boardSize, setBoardSize] = useState(0);
 
-  const groups = useMemo(() => {
-    const map = new Map<string, TokenInfo[]>();
+  // Track board size for responsive token sizing
+  useEffect(() => {
+    if (!boardRef.current) return;
+    const obs = new ResizeObserver(entries => {
+      setBoardSize(entries[0].contentRect.width);
+    });
+    obs.observe(boardRef.current);
+    setBoardSize(boardRef.current.offsetWidth);
+    return () => obs.disconnect();
+  }, [boardRef]);
 
-    const addToken = (
-      token: LudoToken,
-      color: LudoColor,
-      uid: string,
-      slotIdx: number
-    ) => {
-      if (token.isHome) return; // finished tokens → center (skip)
-      const coord = getTokenCoord(token.position, color, slotIdx);
-      if (!coord) return;
-      const key = `${coord.x.toFixed(1)}-${coord.y.toFixed(1)}`;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push({ token, color, uid });
+  // Token size = ~68% of one cell
+  const tokenSize = useMemo(() => {
+    if (!boardSize) return 24;
+    return Math.max(16, Math.floor((boardSize / 15) * 0.7));
+  }, [boardSize]);
+
+  // Build list of all visible tokens with their SVG coords
+  const tokenList = useMemo(() => {
+    const result: Array<{
+      key: string;
+      info: TokenInfo;
+      coord: { x: number; y: number };
+      baseSlotIdx: number;
+    }> = [];
+
+    const processPlayer = (ps: LudoPlayerState | null) => {
+      if (!ps) return;
+      let baseIdx = 0;
+      ps.tokens.forEach(token => {
+        if (token.isHome) return; // don't render finished tokens
+        const slotIdx = token.position === TOKEN_BASE_POSITION ? baseIdx++ : 0;
+        const coord = getTokenCoord(token.position, ps.color as LudoColor, slotIdx);
+        if (!coord) return;
+        result.push({
+          key:         `${ps.color}-${token.id}`,
+          info:        { token, color: ps.color as LudoColor, uid: ps.uid },
+          coord,
+          baseSlotIdx: slotIdx,
+        });
+      });
     };
 
-    const players = [
-      { ps: game.player1, slot: 'player1' },
-      { ps: game.player2, slot: 'player2' },
-    ];
-
-   players.forEach(({ ps }) => {
-  if (!ps) return;
-  let baseIdx = 0;
-  ps.tokens.forEach(token => {
-    const si = token.position === TOKEN_BASE_POSITION ? baseIdx++ : 0;
-    addToken(token, ps.color as LudoColor, ps.uid, si);
-  });
-});
-
-    return map;
+    processPlayer(game.player1);
+    processPlayer(game.player2);
+    return result;
   }, [game.player1, game.player2]);
 
-  const tokenSize = useMemo(() => {
-    // Responsive: roughly 70% of one cell
-    if (!boardRef.current) return 26;
-    const boardPx = boardRef.current.offsetWidth;
-    return Math.max(18, Math.floor((boardPx / GRID) * 0.72));
-  }, [boardRef.current?.offsetWidth]);
+  // Group tokens that share the same cell (within 0.5% tolerance)
+  const groups = useMemo(() => {
+    const map = new Map<string, typeof tokenList>();
+    tokenList.forEach(t => {
+      // Round to nearest cell center to group properly
+      const gx = Math.round(t.coord.x / CELL) * CELL;
+      const gy = Math.round(t.coord.y / CELL) * CELL;
+      const key = `${gx.toFixed(2)}-${gy.toFixed(2)}`;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(t);
+    });
+    return map;
+  }, [tokenList]);
 
   return (
     <div
       style={{
-        position: 'absolute',
-        inset: 0,
+        position:      'absolute',
+        inset:         0,
         pointerEvents: 'none',
       }}
     >
-      {Array.from(groups.entries()).map(([key, tokens]) => {
-        const [xStr, yStr] = key.split('-');
-        const x = parseFloat(xStr);
-        const y = parseFloat(yStr);
-        const count = tokens.length;
+      {tokenList.map(({ key, info, coord }) => {
+        // Find group for this token to apply stack offset
+        const gx = Math.round(coord.x / CELL) * CELL;
+        const gy = Math.round(coord.y / CELL) * CELL;
+        const groupKey = `${gx.toFixed(2)}-${gy.toFixed(2)}`;
+        const group    = groups.get(groupKey) || [];
+        const posInGrp = group.findIndex(g => g.key === key);
+        const offset   = STACK_OFFSETS[posInGrp] ?? STACK_OFFSETS[0];
+
+        // Actual position with small offset for stacked tokens
+        const finalX = coord.x + (group.length > 1 ? offset.dx * 0.3 : 0);
+        const finalY = coord.y + (group.length > 1 ? offset.dy * 0.3 : 0);
+
+        const isMovable = myColor === info.color &&
+                          movableIds.includes(info.token.id);
 
         return (
           <motion.div
             key={key}
-            initial={{ scale: 0.6, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            layout
-            transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+            // Animate position changes smoothly
+            animate={{
+              left: `${finalX}%`,
+              top:  `${finalY}%`,
+            }}
+            initial={false}
+            transition={{
+              type:      'spring',
+              stiffness: 320,
+              damping:   28,
+              mass:      0.8,
+            }}
+            layout={false}
             style={{
-              position: 'absolute',
-              left: `${x}%`,
-              top: `${y}%`,
-              transform: 'translate(-50%, -50%)',
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: count > 2 ? 1 : 0,
-              width: tokenSize + 8,
-              height: tokenSize + 8,
-              pointerEvents: 'auto',
-              zIndex: 10,
+              position:       'absolute',
+              transform:      'translate(-50%, -50%)',
+              pointerEvents:  'auto',
+              zIndex:         isMovable ? 20 : 10,
+              willChange:     'left, top',
             }}
           >
-            {count === 1 ? (
-              (() => {
-                const { token, color } = tokens[0];
-                const isM = myColor === color && movableIds.includes(token.id);
-                return (
-                  <TokenPiece
-                    color={color}
-                    isMovable={isM}
-                    size={tokenSize}
-                    onClick={isM ? () => onTokenClick(color, token.id) : undefined}
-                  />
-                );
-              })()
-            ) : count === 2 ? (
-              tokens.map(({ token, color }) => {
-                const isM = myColor === color && movableIds.includes(token.id);
-                return (
-                  <TokenPiece
-                    key={`${color}-${token.id}`}
-                    color={color}
-                    isMovable={isM}
-                    size={Math.floor(tokenSize * 0.62)}
-                    onClick={isM ? () => onTokenClick(color, token.id) : undefined}
-                  />
-                );
-              })
-            ) : (
-              // 3+ → group by color with count badge
-              (() => {
-                const byColor: Record<string, TokenInfo[]> = {};
-                tokens.forEach(t => {
-                  if (!byColor[t.color]) byColor[t.color] = [];
-                  byColor[t.color].push(t);
-                });
-                return Object.entries(byColor).map(([col, arr]) => {
-                  const mv = arr.find(a => movableIds.includes(a.token.id));
-                  const isM = myColor === col && !!mv;
-                  return (
-                    <TokenPiece
-                      key={col}
-                      color={col as LudoColor}
-                      isMovable={isM}
-                      size={Math.floor(tokenSize * 0.58)}
-                      count={arr.length}
-                      onClick={
-                        isM && mv
-                          ? () => onTokenClick(col as LudoColor, mv.token.id)
-                          : undefined
-                      }
-                    />
-                  );
-                });
-              })()
-            )}
+            <TokenPiece
+              color={info.color}
+              isMovable={isMovable}
+              size={tokenSize}
+              onClick={isMovable ? () => onTokenClick(info.color, info.token.id) : undefined}
+            />
           </motion.div>
         );
       })}
@@ -184,6 +177,7 @@ const TokenOverlay: React.FC<TokenOverlayProps> = memo(({
 });
 
 TokenOverlay.displayName = 'TokenOverlay';
+export default TokenOverlay;
 
 // ─── Main Game Screen ─────────────────────────────────────────────────────────
 const RealLudoGame: React.FC = () => {
