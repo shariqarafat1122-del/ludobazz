@@ -76,7 +76,7 @@ export default function App() {
                 <Route path="/games/DragonTiger" element={<DragonTigerPage />} />
                 <Route path="/games/ludo" element={<LudoLobby />} />
                 <Route path="/games/RealLudoLobby" element={<RealLudoLobby />} />
-                <Route path="/games/RealLudo/:gameId" element={<RealLudo />} />
+                
 
                 
                 {/* Admin routes */}
@@ -89,6 +89,7 @@ export default function App() {
               <Route path="/game-room/:roomId" element={<GameRoom />} />
               <Route path="/games/poker/:tableId" element={<PokerGamePage />} />
               <Route path="/games/ludo/:tableId" element={<LudoGame />} />
+              <Route path="/games/RealLudo/:gameId" element={<RealLudo />} />
             </Route>
 
             {/* Default redirects */}
