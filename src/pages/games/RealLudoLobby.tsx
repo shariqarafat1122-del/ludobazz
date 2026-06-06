@@ -8,7 +8,7 @@ import {
   joinLudoGame,
   subscribeOpenLudoGames,
   LudoGame,
-} from '../../RealLudo';
+} from '../../firebase/RealLudo';
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
 
