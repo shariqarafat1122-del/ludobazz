@@ -1,341 +1,451 @@
-// src/pages/games/RealLudoLobby.tsx
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  onSnapshot, 
-  query, 
-  where,
-  orderBy,
-  getDoc
-} from 'firebase/firestore';
-import { db } from '../../lib/firebase';
+import { motion, AnimatePresence } from 'framer-motion';
+import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '../../context/AuthContext';
+import {
+  LudoGame,
+  createLudoGame,
+  joinLudoGame,
+  subscribeOpenLudoGames,
+} from '../../firebase/RealLudo';
 import toast from 'react-hot-toast';
-
-// ─── Types ───────────────────────────────────────
-interface LudoTable {
-  gameId: string;
-  creatorUid: string;
-  creatorName: string;
-  entryFee: number;
-  prizePool: number;
-  status: 'waiting' | 'playing' | 'finished';
-  createdAt: number;
-}
+import { calculateUsableBalance } from '../../utils/helpers';
 
 const ENTRY_FEES = [10, 25, 50, 100, 500];
 
 export default function RealLudoLobby() {
-  const { user, userProfile } = useAuth();
+  const { user, wallet } = useAuth(); // ✅ wallet from AuthContext
   const navigate = useNavigate();
-  const [tables, setTables] = useState<LudoTable[]>([]);
-  const [loading, setLoading] = useState(false);
+
+  const [openGames, setOpenGames] = useState<LudoGame[]>([]);
   const [selectedFee, setSelectedFee] = useState(10);
+  const [creating, setCreating] = useState(false);
   const [joiningId, setJoiningId] = useState<string | null>(null);
 
-  // ── Fetch waiting tables ──────────────────────
+  // ✅ Use wallet from AuthContext
+  const usableBalance = wallet ? calculateUsableBalance(wallet) : 0;
+
+  // Subscribe to open games
   useEffect(() => {
-    const q = query(
-      collection(db, 'ludo_games'),
-      where('status', '==', 'waiting'),
-      orderBy('createdAt', 'desc')
-    );
-
-    const unsub = onSnapshot(q, (snap) => {
-      const data = snap.docs.map(d => d.data() as LudoTable);
-      // Filter out own tables
-      setTables(data.filter(t => t.creatorUid !== user?.uid));
+    return subscribeOpenLudoGames((games) => {
+      // Filter out own games
+      setOpenGames(games.filter((g) => g.createdBy !== user?.uid));
     });
+  }, [user?.uid]);
 
-    return () => unsub();
-  }, [user]);
+  // ── Create Game ──────────────────────────────────────────────────────────
+  const handleCreate = useCallback(async () => {
+    if (!user) return;
 
-  // ── Create Game ───────────────────────────────
-  const createGame = async () => {
-    if (!user || !userProfile) return;
-
-    // ✅ Balance check
-    if ((userProfile.walletBalance || 0) < selectedFee) {
-      toast.error('Insufficient balance!');
+    if (usableBalance < selectedFee) {
+      toast.error(`Insufficient balance! Need ₹${selectedFee}`);
       return;
     }
 
-    setLoading(true);
+    setCreating(true);
     try {
-      // ✅ Deduct entry fee
-      await updateDoc(doc(db, 'users', user.uid), {
-        walletBalance: (userProfile.walletBalance || 0) - selectedFee,
-      });
-
-      // ✅ Creator = GREEN, goes first
-      const gameData = {
-        gameId: '',
-        players: {
-          [user.uid]: {
-            uid: user.uid,
-            displayName: user.displayName || userProfile.name || 'Player 1',
-            color: 'green',        // ← CREATOR = GREEN
-            isCreator: true,
-            pieces: [0, 1, 2, 3].map(id => ({
-              id,
-              color: 'green',
-              position: -1,
-              isHome: true,
-              isFinished: false,
-            })),
-          },
+      const gameId = uuidv4();
+      await createLudoGame(
+        gameId,
+        {
+          uid: user.uid,
+          name: user.name || 'Player',
+          photoURL: user.photoURL || '',
         },
-        creatorUid: user.uid,
-        creatorName: user.displayName || 'Player 1',
-        currentTurn: user.uid,    // ← CREATOR GOES FIRST
-        diceValue: null,
-        diceRolled: false,
-        status: 'waiting',
-        winner: null,
-        prizePool: selectedFee * 2 * 0.9, // ← 10% platform fee
-        entryFee: selectedFee,
-        createdAt: Date.now(),
-        lastActivity: Date.now(),
-      };
-
-      const ref = await addDoc(collection(db, 'ludo_games'), gameData);
-      
-      // Save gameId in document
-      await updateDoc(ref, { gameId: ref.id });
-      
-      toast.success('Table created! Waiting for opponent...');
-      navigate(`/games/RealLudo/${ref.id}`);
-
-    } catch (err) {
+        selectedFee
+      );
+      toast.success('Table created!');
+      navigate(`/games/RealLudo/${gameId}`);
+    } catch (err: any) {
       console.error(err);
-      // ✅ Refund if error
-      await updateDoc(doc(db, 'users', user.uid), {
-        walletBalance: (userProfile.walletBalance || 0),
-      });
-      toast.error('Failed to create game');
+      toast.error(err.message || 'Failed to create game');
     } finally {
-      setLoading(false);
+      setCreating(false);
     }
-  };
+  }, [user, usableBalance, selectedFee, navigate]);
 
-  // ── Join Game ─────────────────────────────────
-  const joinGame = async (table: LudoTable) => {
-    if (!user || !userProfile) return;
+  // ── Join Game ────────────────────────────────────────────────────────────
+  const handleJoin = useCallback(
+    async (game: LudoGame) => {
+      if (!user) return;
 
-    // ✅ Balance check
-    if ((userProfile.walletBalance || 0) < table.entryFee) {
-      toast.error('Insufficient balance!');
-      return;
-    }
-
-    setJoiningId(table.gameId);
-    try {
-      const gameRef = doc(db, 'ludo_games', table.gameId);
-      
-      // ✅ Check game still waiting
-      const snap = await getDoc(gameRef);
-      if (!snap.exists() || snap.data()?.status !== 'waiting') {
-        toast.error('Table no longer available');
-        setJoiningId(null);
+      if (usableBalance < game.entryFee) {
+        toast.error(`Insufficient balance! Need ₹${game.entryFee}`);
         return;
       }
 
-      // ✅ Deduct entry fee
-      await updateDoc(doc(db, 'users', user.uid), {
-        walletBalance: (userProfile.walletBalance || 0) - table.entryFee,
-      });
-
-      // ✅ Joiner = BLUE
-      await updateDoc(gameRef, {
-        [`players.${user.uid}`]: {
+      setJoiningId(game.id);
+      try {
+        await joinLudoGame(game.id, {
           uid: user.uid,
-          displayName: user.displayName || userProfile.name || 'Player 2',
-          color: 'blue',           // ← JOINER = BLUE
-          isCreator: false,
-          pieces: [0, 1, 2, 3].map(id => ({
-            id,
-            color: 'blue',
-            position: -1,
-            isHome: true,
-            isFinished: false,
-          })),
-        },
-        status: 'playing',         // ← GAME STARTS
-        lastActivity: Date.now(),
-      });
+          name: user.name || 'Player',
+          photoURL: user.photoURL || '',
+        });
+        navigate(`/games/RealLudo/${game.id}`);
+      } catch (err: any) {
+        console.error(err);
+        toast.error(err.message || 'Failed to join game');
+      } finally {
+        setJoiningId(null);
+      }
+    },
+    [user, usableBalance, navigate]
+  );
 
-      navigate(`/games/RealLudo/${table.gameId}`);
-
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to join game');
-    } finally {
-      setJoiningId(null);
-    }
-  };
+  const prize = (selectedFee * 2 * 0.9).toFixed(0);
 
   return (
     <div
-      className="min-h-screen p-4"
+      className="min-h-screen"
       style={{
-        background: 'linear-gradient(135deg, #0d0620, #1a0f2e)',
+        background: 'linear-gradient(160deg, #070714 0%, #0a0a1e 60%, #060d18 100%)',
       }}
     >
-      {/* Header */}
-      <div className="text-center mb-6">
-        <h1 className="text-3xl font-black text-white mb-1">🎲 Ludo</h1>
-        <p className="text-white/50 text-sm">Create or join a table</p>
+      {/* BG Glows */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div
-          className="inline-flex items-center gap-2 mt-2 px-4 py-2 rounded-xl"
-          style={{ background: 'rgba(255,255,255,0.08)' }}
-        >
-          <span className="text-white/60 text-sm">Balance:</span>
-          <span className="text-green-400 font-bold">
-            ₹{userProfile?.walletBalance?.toFixed(2) || '0.00'}
-          </span>
-        </div>
+          className="absolute -top-32 -left-32 w-96 h-96 rounded-full opacity-[0.07] blur-3xl"
+          style={{ background: 'radial-gradient(#ef4444, transparent)' }}
+        />
+        <div
+          className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full opacity-[0.07] blur-3xl"
+          style={{ background: 'radial-gradient(#22c55e, transparent)' }}
+        />
       </div>
 
-      {/* Create Game Section */}
-      <div
-        className="rounded-2xl p-5 mb-6"
-        style={{
-          background: 'rgba(255,255,255,0.05)',
-          border: '1px solid rgba(255,255,255,0.1)',
-        }}
-      >
-        <h2 className="text-white font-bold text-lg mb-4">Create Table</h2>
-
-        {/* Fee Selection */}
-        <div className="grid grid-cols-5 gap-2 mb-4">
-          {ENTRY_FEES.map(fee => (
-            <button
-              key={fee}
-              onClick={() => setSelectedFee(fee)}
-              className="py-2 rounded-xl font-bold text-sm transition-all active:scale-95"
-              style={{
-                background: selectedFee === fee
-                  ? 'linear-gradient(135deg, #16a34a, #15803d)'
-                  : 'rgba(255,255,255,0.08)',
-                color: selectedFee === fee ? 'white' : 'rgba(255,255,255,0.6)',
-                border: selectedFee === fee
-                  ? '1px solid #22c55e'
-                  : '1px solid rgba(255,255,255,0.1)',
-                boxShadow: selectedFee === fee
-                  ? '0 4px 15px rgba(34,197,94,0.3)'
-                  : 'none',
-              }}
-            >
-              ₹{fee}
-            </button>
-          ))}
-        </div>
-
-        {/* Prize pool info */}
-        <div
-          className="flex justify-between items-center p-3 rounded-xl mb-4"
-          style={{ background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.2)' }}
-        >
-          <span className="text-white/60 text-sm">Prize Pool</span>
-          <span className="text-yellow-400 font-black text-lg">
-            ₹{(selectedFee * 2 * 0.9).toFixed(2)}
-          </span>
-        </div>
-
-        <button
-          onClick={createGame}
-          disabled={loading}
-          className="w-full py-4 rounded-2xl font-bold text-lg text-white transition-all active:scale-95"
-          style={{
-            background: loading
-              ? 'rgba(255,255,255,0.1)'
-              : 'linear-gradient(135deg, #16a34a, #15803d)',
-            boxShadow: loading ? 'none' : '0 4px 20px rgba(34,197,94,0.4)',
-          }}
-        >
-          {loading ? 'Creating...' : `Create Table (₹${selectedFee})`}
-        </button>
-      </div>
-
-      {/* Available Tables */}
-      <div>
-        <h2 className="text-white font-bold text-lg mb-3">
-          Available Tables ({tables.length})
-        </h2>
-
-        {tables.length === 0 ? (
-          <div
-            className="text-center py-10 rounded-2xl"
+      <div className="relative max-w-lg mx-auto px-4 pt-6 pb-10">
+        {/* ── Header ────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between mb-6">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="w-9 h-9 rounded-xl flex items-center justify-center"
             style={{
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px dashed rgba(255,255,255,0.1)',
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.08)',
             }}
           >
-            <p className="text-4xl mb-2">🎲</p>
-            <p className="text-white/40 text-sm">No tables available</p>
-            <p className="text-white/25 text-xs">Create one above!</p>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#94a3b8"
+              strokeWidth="2"
+            >
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+
+          <div className="text-center">
+            <h1 className="text-2xl font-black text-white">🎲 Ludo</h1>
+            <p className="text-slate-500 text-xs">Real Money • 2 Players</p>
           </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {tables.map(table => (
-              <div
-                key={table.gameId}
-                className="flex items-center justify-between p-4 rounded-2xl"
+
+          {/* Balance */}
+          <div
+            className="px-3 py-1.5 rounded-xl"
+            style={{
+              background: 'rgba(34,197,94,0.1)',
+              border: '1px solid rgba(34,197,94,0.2)',
+            }}
+          >
+            <p className="text-[10px] text-slate-500 leading-none mb-0.5">
+              Balance
+            </p>
+            <p className="text-green-400 font-black text-sm leading-none">
+              ₹{usableBalance.toFixed(0)}
+            </p>
+          </div>
+        </div>
+
+        {/* ── Create Table Card ──────────────────────────────────── */}
+        <div
+          className="rounded-2xl p-5 mb-5"
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
+          }}
+        >
+          <h2 className="text-white font-bold text-base mb-4 flex items-center gap-2">
+            <span
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-sm"
+              style={{ background: 'rgba(239,68,68,0.15)' }}
+            >
+              🔴
+            </span>
+            Create Table
+            <span className="text-xs text-slate-500 font-normal ml-auto">
+              You play as Red
+            </span>
+          </h2>
+
+          {/* Fee Buttons */}
+          <div className="grid grid-cols-5 gap-2 mb-4">
+            {ENTRY_FEES.map((fee) => (
+              <motion.button
+                key={fee}
+                whileTap={{ scale: 0.93 }}
+                onClick={() => setSelectedFee(fee)}
+                className="py-2.5 rounded-xl font-bold text-sm transition-all"
                 style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  background:
+                    selectedFee === fee
+                      ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+                      : 'rgba(255,255,255,0.06)',
+                  color:
+                    selectedFee === fee
+                      ? 'white'
+                      : 'rgba(255,255,255,0.5)',
+                  border:
+                    selectedFee === fee
+                      ? '1px solid rgba(239,68,68,0.5)'
+                      : '1px solid rgba(255,255,255,0.06)',
+                  boxShadow:
+                    selectedFee === fee
+                      ? '0 4px 15px rgba(239,68,68,0.3)'
+                      : 'none',
                 }}
               >
-                <div>
-                  <p className="text-white font-semibold text-sm">
-                    {table.creatorName}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span
-                      className="px-2 py-0.5 rounded-full text-xs font-bold"
-                      style={{
-                        background: 'rgba(34,197,94,0.15)',
-                        color: '#22c55e',
-                      }}
-                    >
-                      🟢 Green
-                    </span>
-                    <span className="text-white/40 text-xs">vs You 🔵</span>
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <p className="text-yellow-400 font-black text-lg">
-                    ₹{table.prizePool.toFixed(0)}
-                  </p>
-                  <p className="text-white/40 text-xs mb-2">Prize</p>
-                  <button
-                    onClick={() => joinGame(table)}
-                    disabled={joiningId === table.gameId}
-                    className="px-4 py-2 rounded-xl font-bold text-sm text-white transition-all active:scale-95"
-                    style={{
-                      background: joiningId === table.gameId
-                        ? 'rgba(255,255,255,0.1)'
-                        : 'linear-gradient(135deg, #2563eb, #1d4ed8)',
-                      boxShadow: joiningId === table.gameId
-                        ? 'none'
-                        : '0 4px 15px rgba(37,99,235,0.4)',
-                    }}
-                  >
-                    {joiningId === table.gameId
-                      ? 'Joining...'
-                      : `Join ₹${table.entryFee}`}
-                  </button>
-                </div>
-              </div>
+                ₹{fee}
+              </motion.button>
             ))}
           </div>
-        )}
+
+          {/* Prize Info */}
+          <div
+            className="flex items-center justify-between px-4 py-3 rounded-xl mb-4"
+            style={{
+              background: 'rgba(251,191,36,0.08)',
+              border: '1px solid rgba(251,191,36,0.15)',
+            }}
+          >
+            <div>
+              <p className="text-slate-500 text-xs">Entry Fee</p>
+              <p className="text-white font-bold">₹{selectedFee}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-slate-500 text-xs">You Win</p>
+              <p className="text-amber-400 font-black text-lg">₹{prize}</p>
+            </div>
+          </div>
+
+          {/* Insufficient balance warning */}
+          {usableBalance < selectedFee && (
+            <div
+              className="flex items-center gap-2 px-3 py-2 rounded-xl mb-3"
+              style={{
+                background: 'rgba(239,68,68,0.1)',
+                border: '1px solid rgba(239,68,68,0.2)',
+              }}
+            >
+              <span className="text-red-400 text-xs">
+                ⚠️ Insufficient balance. Add ₹
+                {(selectedFee - usableBalance).toFixed(0)} more.
+              </span>
+            </div>
+          )}
+
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={handleCreate}
+            disabled={creating || usableBalance < selectedFee}
+            className="w-full py-4 rounded-2xl font-black text-base text-white transition-all"
+            style={{
+              background:
+                creating || usableBalance < selectedFee
+                  ? 'rgba(255,255,255,0.08)'
+                  : 'linear-gradient(135deg, #ef4444, #dc2626)',
+              boxShadow:
+                creating || usableBalance < selectedFee
+                  ? 'none'
+                  : '0 6px 24px rgba(239,68,68,0.4)',
+              color:
+                creating || usableBalance < selectedFee
+                  ? 'rgba(255,255,255,0.3)'
+                  : 'white',
+            }}
+          >
+            {creating ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg
+                  className="animate-spin"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    strokeDasharray="31.4"
+                    strokeDashoffset="10"
+                  />
+                </svg>
+                Creating...
+              </span>
+            ) : (
+              `Create Table • ₹${selectedFee}`
+            )}
+          </motion.button>
+        </div>
+
+        {/* ── Open Tables ────────────────────────────────────────── */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-white font-bold text-base flex items-center gap-2">
+              <span
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-sm"
+                style={{ background: 'rgba(34,197,94,0.15)' }}
+              >
+                🟢
+              </span>
+              Join Table
+            </h2>
+            <span
+              className="px-2 py-1 rounded-lg text-xs font-bold"
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                color: 'rgba(255,255,255,0.4)',
+              }}
+            >
+              {openGames.length} open
+            </span>
+          </div>
+
+          <AnimatePresence>
+            {openGames.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-12 rounded-2xl"
+                style={{
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px dashed rgba(255,255,255,0.07)',
+                }}
+              >
+                <div className="text-5xl mb-3">🎲</div>
+                <p className="text-slate-500 text-sm">No open tables</p>
+                <p className="text-slate-600 text-xs mt-1">
+                  Create one and wait for opponent!
+                </p>
+              </motion.div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {openGames.map((game) => {
+                  const gamePrize = Math.floor(game.pot * 2 * 0.9);
+                  const canJoin = usableBalance >= game.entryFee;
+                  const isJoining = joiningId === game.id;
+
+                  return (
+                    <motion.div
+                      key={game.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      className="flex items-center justify-between p-4 rounded-2xl"
+                      style={{
+                        background: 'rgba(255,255,255,0.04)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                      }}
+                    >
+                      {/* Player info */}
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-white text-base"
+                          style={{
+                            background:
+                              'linear-gradient(135deg, rgba(239,68,68,0.3), rgba(239,68,68,0.1))',
+                            border: '1px solid rgba(239,68,68,0.3)',
+                          }}
+                        >
+                          {game.player1?.name?.[0]?.toUpperCase() || '?'}
+                        </div>
+                        <div>
+                          <p className="text-white font-semibold text-sm">
+                            {game.player1?.name || 'Player'}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span
+                              className="px-1.5 py-0.5 rounded-md text-[10px] font-bold"
+                              style={{
+                                background: 'rgba(239,68,68,0.15)',
+                                color: '#f87171',
+                              }}
+                            >
+                              🔴 Red
+                            </span>
+                            <span className="text-slate-600 text-[10px]">
+                              vs
+                            </span>
+                            <span
+                              className="px-1.5 py-0.5 rounded-md text-[10px] font-bold"
+                              style={{
+                                background: 'rgba(34,197,94,0.15)',
+                                color: '#4ade80',
+                              }}
+                            >
+                              🟢 You
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right side */}
+                      <div className="flex flex-col items-end gap-2">
+                        <div className="text-right">
+                          <p className="text-amber-400 font-black text-base leading-none">
+                            ₹{gamePrize}
+                          </p>
+                          <p className="text-slate-600 text-[10px]">prize</p>
+                        </div>
+                        <motion.button
+                          whileTap={{ scale: 0.93 }}
+                          onClick={() => handleJoin(game)}
+                          disabled={isJoining || !canJoin}
+                          className="px-4 py-2 rounded-xl font-bold text-xs text-white"
+                          style={{
+                            background:
+                              isJoining || !canJoin
+                                ? 'rgba(255,255,255,0.08)'
+                                : 'linear-gradient(135deg, #22c55e, #16a34a)',
+                            boxShadow:
+                              isJoining || !canJoin
+                                ? 'none'
+                                : '0 4px 14px rgba(34,197,94,0.4)',
+                            color:
+                              isJoining || !canJoin
+                                ? 'rgba(255,255,255,0.3)'
+                                : 'white',
+                          }}
+                        >
+                          {isJoining
+                            ? 'Joining...'
+                            : !canJoin
+                            ? 'Low Balance'
+                            : `Join ₹${game.entryFee}`}
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Add money shortcut */}
+        <div className="mt-6 text-center">
+          <button
+            onClick={() => navigate('/add-money')}
+            className="text-slate-500 text-xs underline underline-offset-2"
+          >
+            Add Money to Wallet
+          </button>
+        </div>
       </div>
     </div>
   );
