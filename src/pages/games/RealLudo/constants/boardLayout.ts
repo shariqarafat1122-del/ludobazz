@@ -47,21 +47,22 @@ export const TRACK: [number, number][] = [
   [9, 5], [9, 4], [9, 3], [9, 2], [9, 1], [9, 0], // 46–51
 ];
 
-// Verify
 if (TRACK.length !== 52) {
   console.error('TRACK must be 52 cells, got:', TRACK.length);
 }
 
-// ─── Home stretch paths (5 colored cells + final center approach) ──────────
+// ─── Home stretch paths ──────────────────────────────────────────────────────
 export const HOME_PATH: Record<string, [number, number][]> = {
   red:   [[7,1],[7,2],[7,3],[7,4],[7,5],[7,6]],   // RED goes right along row 7
   green: [[7,13],[7,12],[7,11],[7,10],[7,9],[7,8]], // GREEN goes left along row 7
 };
 
 // ─── Yard slot positions ────────────────────────────────────────────────────
+// RED yard  = bottom-left  (rows 9–14, cols 0–5) → slots at rows 10,12 cols 1,3
+// GREEN yard = top-right   (rows 0–5,  cols 9–14) → slots at rows 1,3 cols 10,12
 export const YARD_SLOTS: Record<string, [number, number][]> = {
-  red:   [[1,1],[1,3],[3,1],[3,3]],
-  green: [[1,10],[1,12],[3,10],[3,12]],
+  red:   [[10,1],[10,3],[12,1],[12,3]],   // ← FIXED: bottom-left zone
+  green: [[1,10],[1,12],[3,10],[3,12]],   // top-right zone (unchanged, correct)
 };
 
 // ─── Safe squares on main track ────────────────────────────────────────────
