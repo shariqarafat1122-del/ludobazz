@@ -1,4 +1,4 @@
-cat > /mnt/user-data/outputs/boardlayout.ts << 'EOF'
+
 // constants/boardlayout.ts
 // Red  = TOP-LEFT     (player1 / creator)
 // Green = BOTTOM-RIGHT (player2 / joiner)
@@ -132,5 +132,4 @@ export const getTokenCoord = (
   if (!cell) return null;
   return toPercent(cell[0], cell[1]);
 };
-EOF
-echo "boardlayout.ts done"
+
