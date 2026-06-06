@@ -13,6 +13,8 @@ import PokerLobbyPage from './pages/games/PokerLobby';
 import { ColorPrediction } from './pages/games/ColorPrediction';
 import LudoLobby from './pages/games/LudoLobby';
 import LudoGame from './pages/games/LudoGame';
+import RealLudoLobby from './pages/games/RealLudoLobby'; // ya jahan file rakhi ho
+import RealLudo from './pages/games/RealLudo';
 
 
 // Pages
@@ -73,6 +75,8 @@ export default function App() {
                 <Route path="/games/color-prediction" element={<ColorPrediction />} />
                 <Route path="/games/DragonTiger" element={<DragonTigerPage />} />
                 <Route path="/games/ludo" element={<LudoLobby />} />
+                <Route path="/ludo" element={<RealLudoLobby />} />
+                <Route path="/ludo/:gameId" element={<RealLudo />} />
 
                 
                 {/* Admin routes */}
