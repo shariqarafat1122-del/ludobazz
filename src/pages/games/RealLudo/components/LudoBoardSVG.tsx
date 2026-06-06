@@ -25,6 +25,22 @@ const CLR = {
     dark:  '#14532d',
     path:  '#bbf7d0',
   },
+  blue: {
+    bg:    '#1d4ed8',
+    mid:   '#3b82f6',
+    light: '#93c5fd',
+    pale:  '#dbeafe',
+    dark:  '#1e3a8a',
+    path:  '#bfdbfe',
+  },
+  yellow: {
+    bg:    '#ca8a04',
+    mid:   '#eab308',
+    light: '#fde047',
+    pale:  '#fef9c3',
+    dark:  '#854d0e',
+    path:  '#fef08a',
+  },
 };
 
 const LudoBoardSVG: React.FC = memo(() => {
