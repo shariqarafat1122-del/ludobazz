@@ -6,6 +6,7 @@ import {
   updateDoc,
   onSnapshot,
   serverTimestamp,
+  query, where, orderBy, limit,
   runTransaction,
   collection,
 } from 'firebase/firestore';
@@ -477,32 +478,21 @@ export const subscribeLudoGame = (
 
 // ─── Lobby: Get Open Games ────────────────────────────────────────────────────
 
-export const getOpenLudoGames = async (): Promise<LudoGame[]> => {
-  const { getDocs, query, where, orderBy, limit } = await import('firebase/firestore');
-  const q = query(
-    collection(db, 'ludoGames'),
-    where('status', '==', 'waiting'),
-    orderBy('createdAt', 'desc'),
-    limit(20)
-  );
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as LudoGame));
-};
-
 export const subscribeOpenLudoGames = (
   callback: (games: LudoGame[]) => void
 ): (() => void) => {
-  // We'll do a simple polling approach via onSnapshot with a query
-  // Import dynamically to keep top-level imports clean
-  const { query, where, orderBy, limit } = require('firebase/firestore');
   const q = query(
     collection(db, 'ludoGames'),
     where('status', '==', 'waiting'),
     orderBy('createdAt', 'desc'),
     limit(20)
   );
-  return onSnapshot(q, (snap: any) => {
-    const games = snap.docs.map((d: any) => ({ id: d.id, ...d.data() } as LudoGame));
+
+  return onSnapshot(q, (snap) => {
+    const games = snap.docs.map(
+      (d) => ({ id: d.id, ...d.data() } as LudoGame)
+    );
+
     callback(games);
   });
 };
