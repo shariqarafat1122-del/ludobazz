@@ -1,8 +1,8 @@
 import React, { memo } from 'react';
 import { motion } from 'framer-motion';
 import { Wallet, Volume2, VolumeX, Wifi, WifiOff } from 'lucide-react';
-import { calculateUsableBalance } from '../../../utils/helpers';
-import { Wallet as WalletType } from '../../../types';
+import { calculateUsableBalance } from '../../../../utils/helpers';
+import { Wallet as WalletType } from '../../../../types';
 
 interface TopHeaderProps {
   gameId: string;
