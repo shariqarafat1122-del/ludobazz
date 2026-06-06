@@ -8,7 +8,7 @@ import React, {
 } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from './context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   LudoGame,
   LudoToken,
