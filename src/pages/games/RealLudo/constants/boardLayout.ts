@@ -7,12 +7,6 @@ export const CELL = 100 / GRID; // percentage per cell
 // Main track: 52 cells clockwise, index 0 = Red start
 
 export const TRACK: [number, number][] = [
-
-  console.log("Track Length", TRACK.length);
-
-TRACK.forEach((cell, i) => {
-  console.log(i, cell);
-});
   // Row 6 going right (Red's row)
   [6,0],[6,1],[6,2],[6,3],[6,4],
   // Col 5 going up
@@ -43,6 +37,7 @@ TRACK.forEach((cell, i) => {
   [8,1],[8,2],[8,3],[8,4],[8,5],
   // Into center
   [8,6],
+  console.log(TRACK.length);
 ];
 
 // Home stretch paths (toward center, 6 cells each)
