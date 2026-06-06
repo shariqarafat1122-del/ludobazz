@@ -2,7 +2,7 @@
 // Layout: Red = bottom-left, Green = top-right
 
 import React, { memo } from 'react';
-import { GRID, CELL, TRACK, HOME_PATH, YARD_SLOTS, SAFE_CELLS } from '../constants/boardLayout';
+import { GRID, CELL, TRACK, HOME_PATH, YARD_SLOTS, SAFE_CELLS } from '../constants/boardlayout';
 
 const C = CELL; // 6.6667
 
