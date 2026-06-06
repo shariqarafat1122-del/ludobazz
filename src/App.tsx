@@ -17,7 +17,7 @@ const ColorPrediction    = lazy(() => import('./pages/games/ColorPrediction').th
 const LudoLobby          = lazy(() => import('./pages/games/LudoLobby'));
 const LudoGame           = lazy(() => import('./pages/games/LudoGame'));
 const RealLudoLobby = lazy(() => import('./pages/games/RealLudoLobby'));
-const RealLudo      = lazy(() => import('./pages/games/RealLudo/index'));
+const RealLudo      = lazy(() => import('./pages/games/RealLudo/RealLudoGame'));
 const DiceGame           = lazy(() => import('./pages/games/DiceGame').then(m => ({ default: m.DiceGame })));
 
 // ─────────────────────────────────────────────
@@ -143,7 +143,7 @@ export default function App() {
                 {/* 🎮 Full-screen Game Pages (NO Layout) */}
                 <Route path="/games/poker/:tableId"      element={<PokerGamePage />} />
                 <Route path="/games/ludo/:tableId"       element={<LudoGame />} />
-                <Route path="/games/RealLudo/index/:gameId"    element={<RealLudo />} />
+                <Route path="/games/RealLudo/RealLudoGame/:gameId"    element={<RealLudo />} />
               </Route>
 
               {/* ── Redirects ── */}
