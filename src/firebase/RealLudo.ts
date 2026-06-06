@@ -255,38 +255,47 @@ export const joinLudoGame = async (
   gameId: string,
   player2: { uid: string; name: string; photoURL: string }
 ): Promise<void> => {
-  await runTransaction(db, async (tx) => {
-    const gameRef = doc(db, 'ludoGames', gameId);
-    const snap = await tx.get(gameRef);
+  // Pehle game data fetch karo
+  const gameSnap = await getDoc(doc(db, 'ludoGames', gameId));
+  if (!gameSnap.exists()) throw new Error('Game not found');
+  
+  const game = gameSnap.data() as LudoGame;
+  if (game.status !== 'waiting') throw new Error('Game already started');
+  if (game.player2 !== null) throw new Error('Game is full');
+  if (game.player1?.uid === player2.uid) throw new Error('Cannot join your own game');
 
-    if (!snap.exists()) throw new Error('Game not found');
+  // Entry fee pehle deduct karo
+  if (game.entryFee > 0) {
+    await deductFunds(
+      player2.uid,
+      game.entryFee,
+      'GAME_LOSS',
+      `Ludo entry fee - Game ${gameId}`
+    );
+  }
 
-    const game = snap.data() as LudoGame;
-    if (game.status !== 'waiting') throw new Error('Game already started');
-    if (game.player2 !== null) throw new Error('Game is full');
-    if (game.player1?.uid === player2.uid) throw new Error('Cannot join your own game');
+  // Ab game join karo
+  const player2State: LudoPlayerState = {
+    uid: player2.uid,
+    name: player2.name,
+    photoURL: player2.photoURL,
+    color: 'green',
+    tokens: createInitialTokens('green'),
+    tokensHome: 0,
+    isOnline: true,
+    lastSeen: serverTimestamp(),
+  };
 
-    const player2State: LudoPlayerState = {
-      uid: player2.uid,
-      name: player2.name,
-      photoURL: player2.photoURL,
-      color: 'green',
-      tokens: createInitialTokens('green'),
-      tokensHome: 0,
-      isOnline: true,
-      lastSeen: serverTimestamp(),
-    };
-
-    tx.update(gameRef, {
-      player2: player2State,
-      status: 'playing',
-      activePlayer: 'player1', // Red goes first
-      diceRolled: false,
-      pot: game.entryFee * 2,
-      updatedAt: serverTimestamp(),
-      lastActionAt: serverTimestamp(),
-    });
+  await updateDoc(doc(db, 'ludoGames', gameId), {
+    player2: player2State,
+    status: 'playing',
+    activePlayer: 'player1',
+    diceRolled: false,
+    pot: game.entryFee * 2,
+    updatedAt: serverTimestamp(),
+    lastActionAt: serverTimestamp(),
   });
+};
 
   // Deduct entry fee from player2
   const gameSnap = await getDoc(doc(db, 'ludoGames', gameId));
