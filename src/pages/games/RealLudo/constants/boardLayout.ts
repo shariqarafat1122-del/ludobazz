@@ -38,7 +38,7 @@ export const TRACK: [number, number][] = [
   // Into center
   [8,6],
 ];
-
+console.log("TRACK LENGTH =", TRACK.length);
 // Home stretch paths (toward center, 6 cells each)
 export const HOME_PATH = {
   red:    [[7,1],[7,2],[7,3],[7,4],[7,5],[7,6]] as [number,number][],
