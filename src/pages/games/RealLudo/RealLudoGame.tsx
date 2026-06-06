@@ -1,7 +1,7 @@
 // components/LudoBoardSVG.tsx - CLEAN 2-PLAYER BOARD
 
 import React, { memo } from 'react';
-import { GRID, CELL, TRACK, HOME_PATH, YARD_SLOTS, SAFE_CELLS } from './constants/boardLayout';
+import { GRID, CELL, TRACK, HOME_PATH, YARD_SLOTS, SAFE_CELLS } from './constants/boardlayout';
 
 const C = CELL; // 6.6667
 
