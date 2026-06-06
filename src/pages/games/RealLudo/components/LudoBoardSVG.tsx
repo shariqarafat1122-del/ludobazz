@@ -215,25 +215,6 @@ const LudoBoardSVG: React.FC = memo(() => {
       <rect x={p(C*9+0.15)} y={p(C*9+0.15)} width={p(C*6-0.3)} height={p(C*6-0.3)}
         fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" strokeWidth="0.15" />
 
-      {/* ── YARD SLOT CIRCLES ── */}
-      {(['red','green'] as const).map(color =>
-        YARD_SLOTS_2P[color].map(([r, c], i) => {
-          const cx2 = ccx(c), cy2 = ccy(r);
-          return (
-            <g key={`ys-${color}-${i}`}>
-              <circle cx={p(cx2)} cy={p(cy2 + 0.35)} r={p(C * 0.35)}
-                fill="rgba(0,0,0,0.3)" filter="url(#shadowBlur)" />
-              <circle cx={p(cx2)} cy={p(cy2)} r={p(C * 0.35)}
-                fill={`url(#slot${color.charAt(0).toUpperCase() + color.slice(1)})`}
-                stroke="rgba(255,255,255,0.5)" strokeWidth="0.22" />
-              <ellipse cx={p(cx2 - C*0.08)} cy={p(cy2 - C*0.1)}
-                rx={p(C * 0.13)} ry={p(C * 0.08)}
-                fill="rgba(255,255,255,0.45)" />
-            </g>
-          );
-        })
-      )}
-
       {/* ── CENTER AREA ── */}
       <rect x={p(6*C)} y={p(6*C)} width={p(3*C)} height={p(3*C)}
         fill="url(#centerBg)" />
