@@ -2,7 +2,7 @@
 // FIXED: Red yard = bottom-left, Green yard = top-right
 
 import React, { memo } from 'react';
-import { GRID, CELL, TRACK, HOME_PATH, YARD_SLOTS, SAFE_CELLS } from '../constants/boardLayout';
+import { GRID, CELL, TRACK, HOME_PATH, YARD_SLOTS, SAFE_CELLS } from '../constants/BoardLayout';
 
 const C = CELL; // 6.6667
 
