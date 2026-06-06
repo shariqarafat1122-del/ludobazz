@@ -9,8 +9,8 @@ import {
   runTransaction,
   collection,
 } from 'firebase/firestore';
-import { db } from './firebase/config';
-import { deductFunds, addFunds } from './firebase/wallet';
+import { db } from './config';
+import { deductFunds, addFunds } from './wallet';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
