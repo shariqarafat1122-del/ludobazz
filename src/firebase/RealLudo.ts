@@ -97,7 +97,9 @@ export const moveToken = (
 ): LudoToken => {
   let newPosition: number;
   if (token.position === TOKEN_BASE_POSITION) {
-    newPosition = 0;
+    newPosition = 0; // relative position 0 = apna start
+    // Green ka absolute = (0 + 26) % 52 = 26 ✅
+    // Red ka absolute  = (0 + 0)  % 52 = 0  ✅
   } else {
     newPosition = token.position + diceValue;
   }
