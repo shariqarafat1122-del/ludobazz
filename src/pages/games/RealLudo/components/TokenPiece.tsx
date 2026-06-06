@@ -17,7 +17,7 @@ const TokenPiece: React.FC<TokenPieceProps> = memo(({
   color,
   isMovable,
   isActive = false,
-  size = 28,
+  size = 42,
   count = 1,
   onClick,
 }) => {
