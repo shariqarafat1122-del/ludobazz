@@ -197,13 +197,16 @@ const LudoBoardSVG: React.FC = memo(() => {
       {/* ══ CENTER 3×3 ══ */}
       <rect x={p(C*6)} y={p(C*6)} width={p(C*3)} height={p(C*3)} fill="url(#centerBg)" />
       {/* Red triangle — top-left pointing to red yard */}
-      <polygon
-        points={`${p(C*6)},${p(C*6)} ${p(C*7.5)},${p(C*7.5)} ${p(C*9)},${p(C*6)}`}
-        fill={CLR.red.mid} opacity="0.88" />
-      {/* Green triangle — bottom-right pointing to green yard */}
-      <polygon
-        points={`${p(C*6)},${p(C*9)} ${p(C*7.5)},${p(C*7.5)} ${p(C*9)},${p(C*9)}`}
-        fill={CLR.green.mid} opacity="0.88" />
+      points={`${C*6},${C*6} ${C*7.5},${C*7.5} ${C*9},${C*6}`}
+  fill={CLR.red.mid}
+  opacity="0.88"
+/>
+
+<polygon
+  points={`${C*6},${C*9} ${C*7.5},${C*7.5} ${C*9},${C*9}`}
+  fill={CLR.green.mid}
+  opacity="0.88"
+/>
       <line x1={p(C*6)} y1={p(C*7.5)} x2={p(C*9)} y2={p(C*7.5)}
         stroke="rgba(255,255,255,0.1)" strokeWidth="0.1" />
       <line x1={p(C*7.5)} y1={p(C*6)} x2={p(C*7.5)} y2={p(C*9)}
