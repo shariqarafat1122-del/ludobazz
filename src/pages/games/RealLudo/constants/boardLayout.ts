@@ -27,25 +27,21 @@ console.log(
 );
 // Home stretch paths (toward center, 6 cells each)
 export const HOME_PATH = {
-  red:    [[7,1],[7,2],[7,3],[7,4],[7,5],[7,6]] as [number,number][],
-  green:  [[7,13],[7,12],[7,11],[7,10],[7,9],[7,8]] as [number,number][],
-  yellow: [[13,7],[12,7],[11,7],[10,7],[9,7],[8,7]] as [number,number][],
-  blue:   [[1,7],[2,7],[3,7],[4,7],[5,7],[6,7]] as [number,number][],
+  red:   [[7,1],[7,2],[7,3],[7,4],[7,5],[7,6]] as [number,number][],
+  green: [[7,13],[7,12],[7,11],[7,10],[7,9],[7,8]] as [number,number][],
 };
 
 // Yard (base) slot positions for each color
 export const YARD_SLOTS = {
-  red:    [[2,2],[2,4],[4,2],[4,4]],
-  green:  [[2,10],[2,12],[4,10],[4,12]],
-  yellow: [[10,10],[10,12],[12,10],[12,12]],
-  blue:   [[10,2],[10,4],[12,2],[12,4]],
+  red:   [[2,2],[2,4],[4,2],[4,4]],
+  green: [[2,10],[2,12],[4,10],[4,12]],
 };
 
 // Safe squares (absolute track indices)
 export const SAFE_CELLS = new Set([0, 8, 13, 21, 26, 34, 39, 47]);
 
 // Start positions on track for each color
-export const TRACK_START = { red: 0, green: 26, yellow: 39, blue: 13 };
+export const TRACK_START = { red: 0, green: 26 };
 
 // Color themes
 export const COLOR_THEME = {
