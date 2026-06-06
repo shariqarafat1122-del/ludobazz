@@ -297,13 +297,6 @@ export const joinLudoGame = async (
   });
 };
 
-  // Deduct entry fee from player2
-  const gameSnap = await getDoc(doc(db, 'ludoGames', gameId));
-  const game = gameSnap.data() as LudoGame;
-  if (game.entryFee > 0) {
-    await deductFunds(player2.uid, game.entryFee, 'GAME_LOSS', `Ludo entry fee - Game ${gameId}`);
-  }
-};
 
 export const rollDice = async (
   gameId: string,
