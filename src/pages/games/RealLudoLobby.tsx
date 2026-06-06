@@ -394,7 +394,7 @@ const RealLudoLobby: React.FC = () => {
           entryFee
         );
         setShowCreateModal(false);
-        navigate(`/ludo/${gameId}`);
+        navigate(`/games/RealLudo/${gameId}`);
       } catch (err: any) {
         setError(err.message || 'Failed to create game');
       } finally {
@@ -422,7 +422,7 @@ const RealLudoLobby: React.FC = () => {
           name: user.name,
           photoURL: user.photoURL || '',
         });
-        navigate(`/ludo/${gameId}`);
+        navigate(`/games/RealLudo/${gameId}`);
       } catch (err: any) {
         setError(err.message || 'Failed to join game');
       } finally {
