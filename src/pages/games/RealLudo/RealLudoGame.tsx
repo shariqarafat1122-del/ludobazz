@@ -1,530 +1,364 @@
-import React, {
-  useEffect, useState, useCallback, useMemo,
-  useRef, memo,
-} from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '../../../context/AuthContext';
-import {
-  LudoGame, LudoToken, LudoPlayerState, PlayerSlot,
-  subscribeLudoGame, rollDice, moveTokenOnBoard,
-  skipTurn, updatePlayerOnline, forfeitGame,
-  getMovableTokens, getAbsolutePosition,
-  TOKEN_BASE_POSITION, TOKEN_HOME_POSITION, SAFE_POSITIONS,
-} from '../../../firebase/RealLudo';
-import {
-  GRID, CELL, TRACK, HOME_PATH, YARD_SLOTS, SAFE_CELLS,
-  COLOR_THEME, LudoColor, toPercent, getTokenCoord, getAbsIdx,
-} from './constants/boardLayout';
-import LudoBoardSVG from './components/LudoBoardSVG';
-import TokenPiece    from './components/TokenPiece';
-import TopHeader     from './components/TopHeader';
-import PlayerPanel   from './components/PlayerPanel';
-import BottomActionBar from './components/BottomActionBar';
-import WinModal      from './components/WinModal';
-import LeaveModal    from './components/LeaveModal';
-import ParticleBackground from './components/ParticleBackground';
+// components/LudoBoardSVG.tsx - CLEAN 2-PLAYER BOARD
+// FIXED: Red yard = bottom-left, Green yard = top-right
 
-// ─── Token overlay on board ───────────────────────────────────────────────────
-interface TokenOverlayProps {
-  game: LudoGame;
-  myColor: LudoColor | null;
-  movableIds: number[];
-  boardRef: React.RefObject<HTMLDivElement>;
-  onTokenClick: (color: LudoColor, tokenId: number) => void;
-}
+import React, { memo } from 'react';
+import { GRID, CELL, TRACK, HOME_PATH, YARD_SLOTS, SAFE_CELLS } from '../constants/boardLayout';
 
-interface TokenInfo {
-  token: LudoToken;
-  color: LudoColor;
-  uid: string;
-}
+const C = CELL; // 6.6667
 
-// Small offset for stacked tokens in same cell
-const STACK_OFFSETS = [
-  { dx: 0,    dy: 0    },
-  { dx: 1.5,  dy: -1.5 },
-  { dx: -1.5, dy: 1.5  },
-  { dx: 1.5,  dy: 1.5  },
-];
+const p = (v: number) => `${v}%`;
 
-const TokenOverlay: React.FC<TokenOverlayProps> = memo(({
-  game, myColor, movableIds, boardRef, onTokenClick,
-}) => {
-  const [boardSize, setBoardSize] = useState(0);
-
-  // Track board size for responsive token sizing
-  useEffect(() => {
-    if (!boardRef.current) return;
-    const obs = new ResizeObserver(entries => {
-      setBoardSize(entries[0].contentRect.width);
-    });
-    obs.observe(boardRef.current);
-    setBoardSize(boardRef.current.offsetWidth);
-    return () => obs.disconnect();
-  }, [boardRef]);
-
-  // Token size = ~68% of one cell
-  const tokenSize = useMemo(() => {
-    if (!boardSize) return 24;
-    return Math.max(16, Math.floor((boardSize / 15) * 0.7));
-  }, [boardSize]);
-
-  // Build list of all visible tokens with their SVG coords
-  const tokenList = useMemo(() => {
-    const result: Array<{
-      key: string;
-      info: TokenInfo;
-      coord: { x: number; y: number };
-      baseSlotIdx: number;
-    }> = [];
-
-    const processPlayer = (ps: LudoPlayerState | null) => {
-      if (!ps) return;
-      let baseIdx = 0;
-      ps.tokens.forEach(token => {
-        if (token.isHome) return; // don't render finished tokens
-        const slotIdx = token.position === TOKEN_BASE_POSITION ? baseIdx++ : 0;
-        const coord = getTokenCoord(token.position, ps.color as LudoColor, slotIdx);
-        if (!coord) return;
-        result.push({
-          key:         `${ps.color}-${token.id}`,
-          info:        { token, color: ps.color as LudoColor, uid: ps.uid },
-          coord,
-          baseSlotIdx: slotIdx,
-        });
-      });
-    };
-
-    processPlayer(game.player1);
-    processPlayer(game.player2);
-    return result;
-  }, [game.player1, game.player2]);
-
-  // Group tokens that share the same cell (within 0.5% tolerance)
-  const groups = useMemo(() => {
-    const map = new Map<string, typeof tokenList>();
-    tokenList.forEach(t => {
-      // Round to nearest cell center to group properly
-      const gx = Math.round(t.coord.x / CELL) * CELL;
-      const gy = Math.round(t.coord.y / CELL) * CELL;
-      const key = `${gx.toFixed(2)}-${gy.toFixed(2)}`;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(t);
-    });
-    return map;
-  }, [tokenList]);
-
-  return (
-    <div
-      style={{
-        position:      'absolute',
-        inset:         0,
-        pointerEvents: 'none',
-      }}
-    >
-      {tokenList.map(({ key, info, coord }) => {
-        // Find group for this token to apply stack offset
-        const gx = Math.round(coord.x / CELL) * CELL;
-        const gy = Math.round(coord.y / CELL) * CELL;
-        const groupKey = `${gx.toFixed(2)}-${gy.toFixed(2)}`;
-        const group    = groups.get(groupKey) || [];
-        const posInGrp = group.findIndex(g => g.key === key);
-        const offset   = STACK_OFFSETS[posInGrp] ?? STACK_OFFSETS[0];
-
-        // Actual position with small offset for stacked tokens
-        const finalX = coord.x + (group.length > 1 ? offset.dx * 0.3 : 0);
-        const finalY = coord.y + (group.length > 1 ? offset.dy * 0.3 : 0);
-
-        const isMovable = myColor === info.color &&
-                          movableIds.includes(info.token.id);
-
-        return (
-          <motion.div
-            key={key}
-            // Animate position changes smoothly
-            animate={{
-              left: `${finalX}%`,
-              top:  `${finalY}%`,
-            }}
-            initial={false}
-            transition={{
-              type:      'spring',
-              stiffness: 320,
-              damping:   28,
-              mass:      0.8,
-            }}
-            layout={false}
-            style={{
-              position:       'absolute',
-              transform:      'translate(-50%, -50%)',
-              pointerEvents:  'auto',
-              zIndex:         isMovable ? 20 : 10,
-              willChange:     'left, top',
-            }}
-          >
-            <TokenPiece
-              color={info.color}
-              isMovable={isMovable}
-              size={tokenSize}
-              onClick={isMovable ? () => onTokenClick(info.color, info.token.id) : undefined}
-            />
-          </motion.div>
-        );
-      })}
-    </div>
-  );
-});
-TokenOverlay.displayName = 'TokenOverlay';
-
-// ─── Main Game Screen ─────────────────────────────────────────────────────────
-const RealLudoGame: React.FC = () => {
-  const { gameId } = useParams<{ gameId: string }>();
-  const navigate   = useNavigate();
-  const { user, wallet } = useAuth();
-
-  const [game, setGame]           = useState<LudoGame | null>(null);
-  const [loading, setLoading]     = useState(true);
-  const [rolling, setRolling]     = useState(false);
-  const [movingTok, setMovingTok] = useState(false);
-  const [errMsg, setErrMsg]       = useState<string | null>(null);
-  const [toastMsg, setToastMsg]   = useState<string | null>(null);
-  const [showLeave, setShowLeave] = useState(false);
-  const [showWin, setShowWin]     = useState(false);
-  const [winShown, setWinShown]   = useState(false);
-  const [soundOn, setSoundOn]     = useState(true);
-  const boardRef = useRef<HTMLDivElement>(null);
-
-  const showToast = useCallback((msg: string) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 2500);
-  }, []);
-
-  // ── Derived ───────────────────────────────────────────────────────────────
-  const mySlot: PlayerSlot | null = useMemo(() => {
-    if (!game || !user) return null;
-    if (game.player1?.uid === user.uid) return 'player1';
-    if (game.player2?.uid === user.uid) return 'player2';
-    return null;
-  }, [game, user]);
-
-  const myColor = useMemo(
-    () => (mySlot ? (game?.[mySlot]?.color as LudoColor ?? null) : null),
-    [mySlot, game]
-  );
-
-  const isMyTurn      = game?.activePlayer === mySlot;
-  const myState       = mySlot && game ? game[mySlot] : null;
-  const oppSlot       = mySlot === 'player1' ? 'player2' : 'player1';
-  const oppState      = game ? game[oppSlot] : null;
-
-  const movableIds: number[] = useMemo(() => {
-    if (!isMyTurn || !game?.diceRolled || !game.diceValue || !myState)
-      return [];
-    return getMovableTokens(myState.tokens, game.diceValue);
-  }, [isMyTurn, game?.diceRolled, game?.diceValue, myState]);
-
-  const prize = Math.floor((game?.pot || 0) * 0.9);
-
-  // ── Subscribe ─────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!gameId) return;
-    return subscribeLudoGame(gameId, g => {
-      setGame(g);
-      setLoading(false);
-    });
-  }, [gameId]);
-
-  // ── Win modal trigger ─────────────────────────────────────────────────────
-  useEffect(() => {
-    if (game?.status === 'finished' && !winShown) {
-      setWinShown(true);
-      setTimeout(() => setShowWin(true), 700);
-    }
-  }, [game?.status, winShown]);
-
-  // ── Online status ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!gameId || !mySlot) return;
-    updatePlayerOnline(gameId, mySlot, true);
-    const onVis = () => updatePlayerOnline(gameId!, mySlot!, !document.hidden);
-    document.addEventListener('visibilitychange', onVis);
-    return () => {
-      document.removeEventListener('visibilitychange', onVis);
-      updatePlayerOnline(gameId!, mySlot!, false);
-    };
-  }, [gameId, mySlot]);
-
-  // ── Auto skip ─────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (
-      !game || !gameId || !isMyTurn || !game.diceRolled ||
-      movingTok || movableIds.length > 0 || game.diceValue === null
-    ) return;
-    const t = setTimeout(() => {
-      skipTurn(gameId, game.activePlayer!).catch(() => {});
-    }, 1800);
-    return () => clearTimeout(t);
-  }, [game?.diceRolled, movableIds.length, isMyTurn, gameId, movingTok]);
-
-  // ── Roll ──────────────────────────────────────────────────────────────────
-  const handleRoll = useCallback(async () => {
-    if (!gameId || !mySlot || !user || rolling || !isMyTurn ||
-        game?.diceRolled || game?.status !== 'playing') return;
-    setRolling(true);
-    setErrMsg(null);
-    try {
-      await rollDice(gameId, mySlot, user.uid);
-    } catch (e: any) {
-      setErrMsg(e.message);
-    } finally {
-      setTimeout(() => setRolling(false), 700);
-    }
-  }, [gameId, mySlot, user, rolling, isMyTurn, game?.diceRolled, game?.status]);
-
-  // ── Move token ────────────────────────────────────────────────────────────
-  const handleTokenClick = useCallback(async (color: LudoColor, tokenId: number) => {
-    if (!gameId || !mySlot || !user || !isMyTurn ||
-        !game?.diceRolled || movingTok ||
-        color !== myColor || !movableIds.includes(tokenId)) return;
-
-    setMovingTok(true);
-    setErrMsg(null);
-    try {
-      const { captured, won } = await moveTokenOnBoard(
-        gameId, mySlot, user.uid, tokenId
-      );
-      if (captured) showToast('💥 Captured! +Extra turn');
-      if (won)      showToast('🏆 All home!');
-    } catch (e: any) {
-      setErrMsg(e.message);
-    } finally {
-      setMovingTok(false);
-    }
-  }, [
-    gameId, mySlot, user, isMyTurn, game?.diceRolled,
-    movingTok, myColor, movableIds, showToast,
-  ]);
-
-  // ── Leave ─────────────────────────────────────────────────────────────────
-  const handleLeaveConfirm = useCallback(async () => {
-    if (!gameId || !user) return;
-    setShowLeave(false);
-    await forfeitGame(gameId, user.uid).catch(console.error);
-    navigate('/games/RealLudoLobby');
-  }, [gameId, user, navigate]);
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // LOADING
-  // ─────────────────────────────────────────────────────────────────────────
-  if (loading) return (
-    <div className="fixed inset-0 flex items-center justify-center"
-      style={{ background: 'linear-gradient(135deg, #070714, #0f172a)' }}>
-      <div className="text-center">
-        <motion.div
-          animate={{ rotate: 180 }}
-          transition={{ duration: 1.1, repeat: Infinity, ease: 'linear' }}
-          className="text-5xl mb-3"
-        >🎲</motion.div>
-        <p className="text-slate-500 text-sm">Loading game...</p>
-      </div>
-    </div>
-  );
-
-  if (!game) return (
-    <div className="fixed inset-0 flex items-center justify-center"
-      style={{ background: 'linear-gradient(135deg, #070714, #0f172a)' }}>
-      <div className="text-center">
-        <div className="text-5xl mb-3">❌</div>
-        <p className="text-white font-bold mb-4">Game not found</p>
-        <button
-          onClick={() => navigate('/games/RealLudoLobby')}
-          className="px-6 py-3 rounded-2xl font-bold text-white"
-          style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
-        >
-          Back to Lobby
-        </button>
-      </div>
-    </div>
-  );
-
-  const canRoll = isMyTurn && !game.diceRolled &&
-                  game.status === 'playing' && !rolling;
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // RENDER
-  // ─────────────────────────────────────────────────────────────────────────
-  return (
-    <div
-      className="fixed inset-0 flex flex-col overflow-hidden select-none"
-      style={{
-        background: 'linear-gradient(160deg, #060612 0%, #0a0a1e 40%, #06101a 100%)',
-      }}
-    >
-      {/* Ambient particles */}
-      <ParticleBackground />
-
-      {/* Wooden table texture overlay */}
-      <div
-        className="fixed inset-0 pointer-events-none"
-        style={{
-          background: `
-            radial-gradient(ellipse at 50% 50%, rgba(139,90,43,0.04) 0%, transparent 70%)
-          `,
-          zIndex: 0,
-        }}
-      />
-
-      {/* Vignette */}
-      <div
-        className="fixed inset-0 pointer-events-none"
-        style={{
-          background:
-            'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.7) 100%)',
-          zIndex: 1,
-        }}
-      />
-
-      {/* Content */}
-      <div
-        className="relative flex flex-col w-full h-full"
-        style={{ zIndex: 2, maxWidth: 520, margin: '0 auto' }}
-      >
-        {/* ── TOP HEADER ── */}
-        <TopHeader
-          gameId={gameId || ''}
-          wallet={wallet}
-          playerName={myState?.name || user?.name || 'You'}
-          isOnline={myState?.isOnline ?? true}
-          soundOn={soundOn}
-          onSoundToggle={() => setSoundOn(p => !p)}
-          prize={prize}
-        />
-
-        {/* ── PLAYER PANELS ── */}
-        <div className="flex gap-2 px-3 py-2 flex-shrink-0">
-          <PlayerPanel
-            player={myState as LudoPlayerState | null}
-            isMe
-            isActive={isMyTurn}
-            diceValue={isMyTurn ? game.diceValue : null}
-            slot="left"
-          />
-          <div
-            className="flex items-center justify-center px-1 flex-shrink-0"
-            style={{
-              color: 'rgba(255,255,255,0.15)',
-              fontSize: 10,
-              fontWeight: 900,
-              letterSpacing: '0.05em',
-            }}
-          >
-            VS
-          </div>
-          <PlayerPanel
-            player={oppState as LudoPlayerState | null}
-            isMe={false}
-            isActive={!isMyTurn && game.status === 'playing'}
-            diceValue={!isMyTurn ? game.diceValue : null}
-            slot="right"
-          />
-        </div>
-
-        {/* ── TOAST / ERROR ── */}
-        <div className="px-3 flex-shrink-0" style={{ minHeight: 22 }}>
-          <AnimatePresence mode="wait">
-            {toastMsg ? (
-              <motion.p
-                key="toast"
-                initial={{ opacity: 0, y: -4, scale: 0.9 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="text-center text-xs font-bold text-amber-400"
-              >
-                {toastMsg}
-              </motion.p>
-            ) : errMsg ? (
-              <motion.p
-                key="err"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-center text-xs text-red-400"
-              >
-                {errMsg}
-              </motion.p>
-            ) : null}
-          </AnimatePresence>
-        </div>
-
-        {/* ── BOARD ── */}
-        <div
-          className="flex-1 flex items-center justify-center px-3 py-1 min-h-0"
-        >
-          <div
-            ref={boardRef}
-            className="relative w-full"
-            style={{
-              aspectRatio: '1 / 1',
-              maxHeight: '100%',
-              maxWidth: '100%',
-              borderRadius: 16,
-              overflow: 'hidden',
-              boxShadow: `
-                0 0 0 2px rgba(255,255,255,0.08),
-                0 20px 60px rgba(0,0,0,0.8),
-                0 0 80px rgba(124,58,237,0.06)
-              `,
-            }}
-          >
-            {/* SVG Board */}
-            <LudoBoardSVG />
-
-            {/* Token Overlay */}
-            <TokenOverlay
-              game={game}
-              myColor={myColor}
-              movableIds={movableIds}
-              boardRef={boardRef}
-              onTokenClick={handleTokenClick}
-            />
-          </div>
-        </div>
-
-        {/* ── BOTTOM ACTION BAR ── */}
-        <BottomActionBar
-          diceValue={game.diceValue}
-          isRolling={rolling}
-          canRoll={canRoll}
-          myColor={myColor || 'red'}
-          consecutiveSixes={game.consecutiveSixes}
-          status={game.status}
-          isMyTurn={isMyTurn}
-          movableCount={movableIds.length}
-          onRoll={handleRoll}
-          onLeave={() => setShowLeave(true)}
-          onEmoji={() => showToast('😄 Emojis coming soon!')}
-          onChat={() => showToast('💬 Chat coming soon!')}
-        />
-      </div>
-
-      {/* ── MODALS ── */}
-      <WinModal
-        show={showWin && game.status === 'finished'}
-        won={game.winnerId === user?.uid}
-        winnerName={game.winnerName || 'Opponent'}
-        prize={prize}
-        entryFee={game.entryFee}
-      />
-
-      <LeaveModal
-        show={showLeave}
-        pot={game.pot}
-        onConfirm={handleLeaveConfirm}
-        onCancel={() => setShowLeave(false)}
-      />
-    </div>
-  );
+// Color config
+const CLR = {
+  red: {
+    bg:    '#b91c1c',
+    mid:   '#ef4444',
+    light: '#fca5a5',
+    pale:  '#fee2e2',
+    dark:  '#7f1d1d',
+    path:  '#fecaca',
+  },
+  green: {
+    bg:    '#15803d',
+    mid:   '#22c55e',
+    light: '#86efac',
+    pale:  '#dcfce7',
+    dark:  '#14532d',
+    path:  '#bbf7d0',
+  },
 };
 
-export default RealLudoGame;
+const LudoBoardSVG: React.FC = memo(() => {
+  const getTrackIdx = (r: number, c: number) =>
+    TRACK.findIndex(([tr, tc]) => tr === r && tc === c);
+
+  const cells: JSX.Element[] = [];
+
+  for (let r = 0; r < GRID; r++) {
+    for (let c = 0; c < GRID; c++) {
+      const x = c * C;
+      const y = r * C;
+
+      // ── Skip yard zones ──
+      // Green yard: top-right (rows 0-5, cols 9-14)
+      const isGreenYard = r >= 0 && r <= 5 && c >= 9 && c <= 14;
+      // Red yard: bottom-left (rows 9-14, cols 0-5)  ← FIXED
+      const isRedYard   = r >= 9 && r <= 14 && c >= 0 && c <= 5;
+      // Dark unused zones
+      const isTLZone    = r >= 0 && r <= 5 && c >= 0 && c <= 5;   // top-left dark
+      const isBRZone    = r >= 9 && r <= 14 && c >= 9 && c <= 14; // bottom-right dark
+      const isCenter    = r >= 6 && r <= 8 && c >= 6 && c <= 8;
+
+      if (isRedYard || isGreenYard || isTLZone || isBRZone || isCenter) continue;
+
+      // ── Red home path ──
+      const isRedPath = HOME_PATH.red.some(([hr, hc]) => hr === r && hc === c);
+      // ── Green home path ──
+      const isGreenPath = HOME_PATH.green.some(([hr, hc]) => hr === r && hc === c);
+
+      const tIdx   = getTrackIdx(r, c);
+      const isSafe = tIdx !== -1 && SAFE_CELLS.has(tIdx);
+
+      let fill = '#f0ebe0';
+      if (isRedPath)   fill = CLR.red.path;
+      if (isGreenPath) fill = CLR.green.path;
+      if (isSafe)      fill = '#fef08a';
+
+      cells.push(
+        <g key={`cell-${r}-${c}`}>
+          <rect
+            x={p(x)} y={p(y)}
+            width={p(C)} height={p(C)}
+            fill={fill}
+            stroke="rgba(0,0,0,0.12)"
+            strokeWidth="0.08"
+          />
+          <rect x={p(x + 0.06)} y={p(y + 0.06)} width={p(C - 0.12)} height={p(0.45)}
+            fill="rgba(255,255,255,0.45)" />
+          <rect x={p(x + 0.06)} y={p(y + 0.06)} width={p(0.45)} height={p(C - 0.12)}
+            fill="rgba(255,255,255,0.2)" />
+          <rect x={p(x + 0.06)} y={p(y + C - 0.5)} width={p(C - 0.12)} height={p(0.45)}
+            fill="rgba(0,0,0,0.1)" />
+
+          {isSafe && (
+            <text
+              x={p(x + C / 2)} y={p(y + C / 2 + 1.0)}
+              textAnchor="middle"
+              fontSize={p(C * 0.52)}
+              fill={isRedPath ? CLR.red.dark : isGreenPath ? CLR.green.dark : '#854d0e'}
+              opacity="0.7"
+            >★</text>
+          )}
+
+          {isRedPath && !isSafe && (
+            <text
+              x={p(x + C / 2)} y={p(y + C / 2 + 0.9)}
+              textAnchor="middle"
+              fontSize={p(C * 0.45)}
+              fill={CLR.red.dark}
+              opacity="0.4"
+            >›</text>
+          )}
+          {isGreenPath && !isSafe && (
+            <text
+              x={p(x + C / 2)} y={p(y + C / 2 + 0.9)}
+              textAnchor="middle"
+              fontSize={p(C * 0.45)}
+              fill={CLR.green.dark}
+              opacity="0.4"
+              transform={`rotate(180, ${x + C / 2}, ${y + C / 2})`}
+            >›</text>
+          )}
+        </g>
+      );
+    }
+  }
+
+  return (
+    <svg
+      viewBox="0 0 100 100"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{ width: '100%', height: '100%', display: 'block' }}
+      shapeRendering="geometricPrecision"
+    >
+      <defs>
+        {/* Red yard gradient - bottom-left */}
+        <radialGradient id="redYard" cx="35%" cy="75%" r="75%">
+          <stop offset="0%"   stopColor={CLR.red.light} />
+          <stop offset="45%"  stopColor={CLR.red.mid} />
+          <stop offset="100%" stopColor={CLR.red.dark} />
+        </radialGradient>
+        {/* Green yard gradient - top-right */}
+        <radialGradient id="greenYard" cx="65%" cy="25%" r="75%">
+          <stop offset="0%"   stopColor={CLR.green.light} />
+          <stop offset="45%"  stopColor={CLR.green.mid} />
+          <stop offset="100%" stopColor={CLR.green.dark} />
+        </radialGradient>
+        <radialGradient id="innerBox" cx="35%" cy="28%" r="70%">
+          <stop offset="0%"   stopColor="rgba(255,255,255,0.3)" />
+          <stop offset="100%" stopColor="rgba(0,0,0,0.2)" />
+        </radialGradient>
+        <radialGradient id="centerBg" cx="50%" cy="40%" r="70%">
+          <stop offset="0%"   stopColor="#1e1e3a" />
+          <stop offset="100%" stopColor="#0a0a1a" />
+        </radialGradient>
+        <radialGradient id="yardSlotRed" cx="35%" cy="30%" r="65%">
+          <stop offset="0%"   stopColor="rgba(255,255,255,0.35)" />
+          <stop offset="55%"  stopColor="rgba(255,255,255,0.05)" />
+          <stop offset="100%" stopColor="rgba(127,29,29,0.2)" />
+        </radialGradient>
+        <radialGradient id="yardSlotGreen" cx="35%" cy="30%" r="65%">
+          <stop offset="0%"   stopColor="rgba(255,255,255,0.35)" />
+          <stop offset="55%"  stopColor="rgba(255,255,255,0.05)" />
+          <stop offset="100%" stopColor="rgba(20,83,45,0.2)" />
+        </radialGradient>
+        <linearGradient id="woodBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"   stopColor="#92600a" />
+          <stop offset="35%"  stopColor="#c9922a" />
+          <stop offset="65%"  stopColor="#a0711a" />
+          <stop offset="100%" stopColor="#6b4f0f" />
+        </linearGradient>
+        <linearGradient id="boardSurface" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"   stopColor="#1c1c1c" />
+          <stop offset="100%" stopColor="#111111" />
+        </linearGradient>
+        <filter id="yardGlow" x="-15%" y="-15%" width="130%" height="130%">
+          <feDropShadow dx="0" dy="2" stdDeviation="1.5" floodColor="rgba(0,0,0,0.5)" />
+        </filter>
+        <filter id="slotInset" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="1" stdDeviation="0.8" floodColor="rgba(0,0,0,0.4)" />
+        </filter>
+      </defs>
+
+      {/* WOOD BORDER */}
+      <rect x="0" y="0" width="100" height="100" rx="2.5" fill="url(#woodBorder)" />
+      <rect x="0.4" y="0.4" width="99.2" height="1.2" fill="rgba(255,255,255,0.22)" rx="0.6" />
+      <rect x="0.4" y="0.4" width="1.2" height="99.2" fill="rgba(255,255,255,0.12)" rx="0.6" />
+      <rect x="0.4" y="98.4" width="99.2" height="1.2" fill="rgba(0,0,0,0.3)" rx="0.6" />
+
+      {/* BOARD SURFACE */}
+      <rect x="1.5" y="1.5" width="97" height="97" rx="1.5" fill="url(#boardSurface)" />
+
+      {/* TRACK CELLS */}
+      {cells}
+
+      {/* ══════════════════════════════════════
+          TOP-LEFT DARK ZONE (unused corner)
+      ══════════════════════════════════════ */}
+      <rect x={p(0)} y={p(0)} width={p(C * 6)} height={p(C * 6)} fill="#0d0d0d" />
+      <rect x={p(0.2)} y={p(0.2)} width={p(C * 6 - 0.4)} height={p(C * 6 - 0.4)}
+        fill="rgba(255,255,255,0.02)"
+        stroke="rgba(255,255,255,0.05)"
+        strokeWidth="0.12"
+      />
+
+      {/* ══════════════════════════════════════
+          GREEN YARD (top-right, rows 0-5, cols 9-14)
+      ══════════════════════════════════════ */}
+      <rect x={p(C * 9)} y={p(0)} width={p(C * 6)} height={p(C * 6)}
+        fill="url(#greenYard)" filter="url(#yardGlow)" />
+      <rect x={p(C * 9 + 0.2)} y={p(0.2)} width={p(C * 6 - 0.4)} height={p(1.4)}
+        fill="rgba(255,255,255,0.16)" rx="0.5" />
+      <rect
+        x={p(C * 9.5)} y={p(C * 0.5)}
+        width={p(C * 5)} height={p(C * 5)}
+        rx="2%" fill="url(#innerBox)"
+        stroke="rgba(255,255,255,0.5)" strokeWidth="0.2"
+      />
+      <rect
+        x={p(C * 9.65)} y={p(C * 0.65)}
+        width={p(C * 4.7)} height={p(0.9)}
+        fill="rgba(255,255,255,0.26)" rx="0.5%"
+      />
+
+      {/* Green Yard Token Slots */}
+      {YARD_SLOTS.green.map(([sr, sc], i) => {
+        const sx = sc * C + C / 2;
+        const sy = sr * C + C / 2;
+        return (
+          <g key={`gs-${i}`}>
+            <circle cx={p(sx)} cy={p(sy + 0.4)} r={p(C * 0.38)}
+              fill="rgba(0,0,0,0.35)" filter="url(#slotInset)" />
+            <circle cx={p(sx)} cy={p(sy)} r={p(C * 0.38)}
+              fill="rgba(0,0,0,0.25)"
+              stroke="rgba(255,255,255,0.15)"
+              strokeWidth="0.15"
+            />
+            <circle cx={p(sx)} cy={p(sy)} r={p(C * 0.3)}
+              fill="url(#yardSlotGreen)" />
+            <path
+              d={`M ${sx - C * 0.22},${sy - C * 0.16} A ${C * 0.3},${C * 0.3} 0 0,1 ${sx + C * 0.22},${sy - C * 0.16}`}
+              fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.18"
+            />
+          </g>
+        );
+      })}
+
+      {/* ══════════════════════════════════════
+          RED YARD (bottom-left, rows 9-14, cols 0-5)  ← FIXED
+      ══════════════════════════════════════ */}
+      <rect x={p(0)} y={p(C * 9)} width={p(C * 6)} height={p(C * 6)}
+        fill="url(#redYard)" filter="url(#yardGlow)" />
+      <rect x={p(0.2)} y={p(C * 9 + 0.2)} width={p(C * 6 - 0.4)} height={p(1.4)}
+        fill="rgba(255,255,255,0.18)" rx="0.5" />
+      <rect
+        x={p(C * 0.5)} y={p(C * 9.5)}
+        width={p(C * 5)} height={p(C * 5)}
+        rx="2%" fill="url(#innerBox)"
+        stroke="rgba(255,255,255,0.5)" strokeWidth="0.2"
+      />
+      <rect
+        x={p(C * 0.65)} y={p(C * 9.65)}
+        width={p(C * 4.7)} height={p(0.9)}
+        fill="rgba(255,255,255,0.28)" rx="0.5%"
+      />
+
+      {/* Red Yard Token Slots */}
+      {YARD_SLOTS.red.map(([sr, sc], i) => {
+        const sx = sc * C + C / 2;
+        const sy = sr * C + C / 2;
+        return (
+          <g key={`rs-${i}`}>
+            <circle cx={p(sx)} cy={p(sy + 0.4)} r={p(C * 0.38)}
+              fill="rgba(0,0,0,0.35)" filter="url(#slotInset)" />
+            <circle cx={p(sx)} cy={p(sy)} r={p(C * 0.38)}
+              fill="rgba(0,0,0,0.25)"
+              stroke="rgba(255,255,255,0.15)"
+              strokeWidth="0.15"
+            />
+            <circle cx={p(sx)} cy={p(sy)} r={p(C * 0.3)}
+              fill="url(#yardSlotRed)" />
+            <path
+              d={`M ${sx - C * 0.22},${sy - C * 0.16} A ${C * 0.3},${C * 0.3} 0 0,1 ${sx + C * 0.22},${sy - C * 0.16}`}
+              fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.18"
+            />
+          </g>
+        );
+      })}
+
+      {/* ══════════════════════════════════════
+          BOTTOM-RIGHT DARK ZONE (unused corner)
+      ══════════════════════════════════════ */}
+      <rect x={p(C * 9)} y={p(C * 9)} width={p(C * 6)} height={p(C * 6)} fill="#0d0d0d" />
+      <rect x={p(C * 9 + 0.2)} y={p(C * 9 + 0.2)}
+        width={p(C * 6 - 0.4)} height={p(C * 6 - 0.4)}
+        fill="rgba(255,255,255,0.02)"
+        stroke="rgba(255,255,255,0.05)"
+        strokeWidth="0.12"
+      />
+
+      {/* ══════════════════════════════════════
+          CENTER AREA (3×3)
+      ══════════════════════════════════════ */}
+      <rect x={p(C * 6)} y={p(C * 6)} width={p(C * 3)} height={p(C * 3)}
+        fill="url(#centerBg)" />
+
+      {/* Red triangle — points toward bottom-left (red yard) */}
+      <polygon
+        points={`
+          ${p(C * 6)},${p(C * 9)}
+          ${p(C * 7.5)},${p(C * 7.5)}
+          ${p(C * 6)},${p(C * 6)}
+        `}
+        fill={CLR.red.mid}
+        opacity="0.88"
+      />
+      {/* Green triangle — points toward top-right (green yard) */}
+      <polygon
+        points={`
+          ${p(C * 9)},${p(C * 6)}
+          ${p(C * 7.5)},${p(C * 7.5)}
+          ${p(C * 9)},${p(C * 9)}
+        `}
+        fill={CLR.green.mid}
+        opacity="0.88"
+      />
+
+      {/* Center dividers */}
+      <line
+        x1={p(C * 6)} y1={p(C * 7.5)} x2={p(C * 9)} y2={p(C * 7.5)}
+        stroke="rgba(255,255,255,0.1)" strokeWidth="0.1"
+      />
+      <line
+        x1={p(C * 7.5)} y1={p(C * 6)} x2={p(C * 7.5)} y2={p(C * 9)}
+        stroke="rgba(255,255,255,0.1)" strokeWidth="0.1"
+      />
+
+      {/* Center star */}
+      <circle cx={p(C * 7.5)} cy={p(C * 7.5)} r={p(C * 0.7)} fill="rgba(0,0,0,0.45)" />
+      <circle cx={p(C * 7.5)} cy={p(C * 7.5)} r={p(C * 0.65)}
+        fill="none" stroke="rgba(255,215,0,0.4)" strokeWidth="0.18" />
+      <text
+        x={p(C * 7.5)} y={p(C * 7.5 + 1.3)}
+        textAnchor="middle"
+        fontSize={p(C * 1.05)}
+        fill="rgba(255,215,0,0.95)"
+      >★</text>
+
+      {/* SUBTLE GRID LINES */}
+      {Array.from({ length: GRID + 1 }, (_, i) => (
+        <g key={`gl-${i}`}>
+          <line x1={p(i * C)} y1="0%" x2={p(i * C)} y2="100%"
+            stroke="rgba(0,0,0,0.18)" strokeWidth="0.06" />
+          <line x1="0%" y1={p(i * C)} x2="100%" y2={p(i * C)}
+            stroke="rgba(0,0,0,0.18)" strokeWidth="0.06" />
+        </g>
+      ))}
+
+      {/* INNER BOARD BORDER */}
+      <rect x="1.5%" y="1.5%" width="97%" height="97%"
+        rx="1.5%" fill="none"
+        stroke="rgba(255,255,255,0.08)"
+        strokeWidth="0.2"
+      />
+
+      {/* Corner accent dots */}
+      {[[2,2],[98,2],[2,98],[98,98]].map(([x,y],i) => (
+        <circle key={`cd-${i}`} cx={p(x)} cy={p(y)} r={p(0.5)} fill="rgba(255,255,255,0.2)" />
+      ))}
+    </svg>
+  );
+});
+
+LudoBoardSVG.displayName = 'LudoBoardSVG';
+export default LudoBoardSVG;
