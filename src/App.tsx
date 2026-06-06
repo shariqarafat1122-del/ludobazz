@@ -75,8 +75,8 @@ export default function App() {
                 <Route path="/games/color-prediction" element={<ColorPrediction />} />
                 <Route path="/games/DragonTiger" element={<DragonTigerPage />} />
                 <Route path="/games/ludo" element={<LudoLobby />} />
-                <Route path="/ludo" element={<RealLudoLobby />} />
-                <Route path="/ludo/:gameId" element={<RealLudo />} />
+                <Route path="games/RealLudo" element={<RealLudoLobby />} />
+                <Route path="games/RealLudo/:gameId" element={<RealLudo />} />
 
                 
                 {/* Admin routes */}
