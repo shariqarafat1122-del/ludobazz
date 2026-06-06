@@ -141,7 +141,6 @@ export default function App() {
                 {/* 🎮 Full-screen Game Pages (NO Layout) */}
                 <Route path="/games/poker/:tableId"      element={<PokerGamePage />} />
                 <Route path="/games/ludo/:tableId"       element={<LudoGame />} />
-                <Route path="/games/RealLudo/RealLudoGame/:gameId"    element={<RealLudo />} />
               </Route>
 
               {/* ── Redirects ── */}
