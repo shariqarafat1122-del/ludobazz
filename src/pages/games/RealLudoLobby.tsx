@@ -528,3 +528,129 @@ const RealLudoLobby: React.FC = () => {
           transition={{ delay: 0.15 }}
           whileHover={{ scale: 1.02, y: -1 }}
           whileTap={{ scale: 0.98 }}
+          onClick={() => setShowCreateModal(true)}
+          className="w-full py-4 rounded-2xl font-bold text-white text-base mb-6 relative overflow-hidden flex items-center justify-center gap-2"
+          style={{
+            background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 60%, #2563eb 100%)',
+            boxShadow: '0 8px 24px rgba(124,58,237,0.4)',
+          }}
+        >
+          <div className="absolute inset-0 bg-white/5 opacity-0 hover:opacity-100 transition-opacity" />
+          <PlusIcon />
+          <BoardIcon />
+          Create New Game
+        </motion.button>
+
+        {/* Error */}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm"
+            >
+              ⚠ {error}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Games list */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-white font-bold text-sm flex items-center gap-2">
+              <UsersIcon />
+              Open Rooms
+            </h2>
+            <span className="text-slate-500 text-xs">
+              {loadingGames ? 'Loading...' : `${openGames.length} available`}
+            </span>
+          </div>
+
+          {loadingGames ? (
+            <div className="space-y-3">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="h-24 rounded-2xl animate-pulse"
+                  style={{ background: 'rgba(255,255,255,0.04)' }}
+                />
+              ))}
+            </div>
+          ) : openGames.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center py-12"
+            >
+              <div className="text-5xl mb-3">🎲</div>
+              <p className="text-slate-400 font-medium">No open games</p>
+              <p className="text-slate-600 text-sm mt-1">Create one and invite a friend!</p>
+            </motion.div>
+          ) : (
+            <AnimatePresence mode="popLayout">
+              <div className="space-y-3">
+                {openGames.map((game) => (
+                  <GameCard
+                    key={game.id}
+                    game={game}
+                    onJoin={handleJoin}
+                    joiningId={joiningId}
+                    currentUid={user?.uid || ''}
+                  />
+                ))}
+              </div>
+            </AnimatePresence>
+          )}
+        </div>
+
+        {/* How to play */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="mt-8 p-4 rounded-2xl border border-white/5"
+          style={{ background: 'rgba(255,255,255,0.02)' }}
+        >
+          <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-3">
+            How to Play
+          </h3>
+          <div className="space-y-2">
+            {[
+              ['🎲', 'Roll 6 to open a token from base'],
+              ['♟', 'Move tokens clockwise around the board'],
+              ['⚔️', 'Land on opponent to send them back'],
+              ['🏆', 'First to bring all 4 tokens home wins'],
+            ].map(([icon, text]) => (
+              <div key={text} className="flex items-start gap-2 text-xs text-slate-500">
+                <span>{icon}</span>
+                <span>{text}</span>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Create Game Modal */}
+      <AnimatePresence>
+        {showCreateModal && (
+          <CreateGameModal
+            onClose={() => setShowCreateModal(false)}
+            onCreate={handleCreate}
+            creating={creating}
+            walletBalance={walletBalance}
+          />
+        )}
+      </AnimatePresence>
+
+      <style>{`
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(200%); }
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default RealLudoLobby;
