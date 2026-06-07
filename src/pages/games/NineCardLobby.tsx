@@ -16,8 +16,8 @@ import {
   orderBy,
   where,
 } from "firebase/firestore";
-import { db } from "../firebase/config"; // src/firebase/config.ts
-import { useAuth } from "../context/AuthContext"; // AuthContext hook
+import { db } from "../../firebase/config"; // src/firebase/config.ts
+import { useAuth } from "../../context/AuthContext"; // AuthContext hook
 import {
   TableDoc,
   TableStatus,
@@ -29,7 +29,7 @@ import {
   joinTable,
   formatAmount,
   NINE_CARD_COLLECTIONS,
-} from "../NineCard";
+} from "../../NineCard";
 
 // ─────────────────────────────────────────────
 // TYPES
