@@ -35,7 +35,7 @@ import {
   formatAmount,
   canShow,
   NINE_CARD_COLLECTIONS,
-} from "../../firebase/NineCardb";
+} from "../../firebase/NineCard";
 
 // ─────────────────────────────────────────────
 // CSS KEYFRAMES (injected once)
