@@ -219,25 +219,39 @@ export const getCardName = (
 // CALCULATE USABLE BALANCE
 // =====================================================
 
-export const calculateTotalBalance = (
-  wallet?: {
-    winningBalance?: number;
-    depositBalance?: number;
-    bonusBalance?: number;
-    referralBalance?: number;
-  } | null
+export const calculateUsableBalance = (
+  wallet: {
+    winningBalance: number;
+    depositBalance: number;
+    bonusBalance: number;
+    referralBalance: number;
+  }
 ): number => {
 
   if (!wallet) return 0;
 
+  const depositBalance =
+    wallet.depositBalance || 0;
+
+  const winningBalance =
+    wallet.winningBalance || 0;
+
+  const referralBalance =
+    wallet.referralBalance || 0;
+
+  // ONLY 10% BONUS USABLE
+  const usableBonus =
+    Math.floor(
+      (wallet.bonusBalance || 0) * 0.1
+    );
+
   return (
-    (wallet.winningBalance || 0) +
-    (wallet.depositBalance || 0) +
-    (wallet.bonusBalance || 0) +
-    (wallet.referralBalance || 0)
+    depositBalance +
+    winningBalance +
+    referralBalance +
+    usableBonus
   );
 };
-
 
 // =====================================================
 // DEDUCT BALANCE FOR GAMEPLAY
@@ -389,13 +403,15 @@ export const deductFromWallet = (
 // =====================================================
 
 export const calculateTotalBalance = (
-  wallet: {
-    winningBalance: number;
-    depositBalance: number;
-    bonusBalance: number;
-    referralBalance: number;
-  }
+  wallet?: {
+    winningBalance?: number;
+    depositBalance?: number;
+    bonusBalance?: number;
+    referralBalance?: number;
+  } | null
 ): number => {
+
+  if (!wallet) return 0;
 
   return (
     (wallet.winningBalance || 0) +
@@ -404,7 +420,6 @@ export const calculateTotalBalance = (
     (wallet.referralBalance || 0)
   );
 };
-
 // =====================================================
 // WITHDRAWABLE BALANCE
 // ONLY WINNING BALANCE
