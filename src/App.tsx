@@ -17,6 +17,8 @@ const ColorPrediction    = lazy(() => import('./pages/games/ColorPrediction').th
 const LudoLobby          = lazy(() => import('./pages/games/LudoLobby'));
 const LudoGame           = lazy(() => import('./pages/games/LudoGame'));
 const DiceGame           = lazy(() => import('./pages/games/DiceGame').then(m => ({ default: m.DiceGame })));
+const NineCard           = lazy(() => import('./pages/games/NineCard').then(m => ({ default: m.NineCard })));
+const NineCardLobby          = lazy(() => import('./pages/games/NineCardLobby').then(m => ({ default: m.NineCardLobby })));
 
 // ─────────────────────────────────────────────
 // 📄 Main Pages (Lazy)
