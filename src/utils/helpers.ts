@@ -219,39 +219,25 @@ export const getCardName = (
 // CALCULATE USABLE BALANCE
 // =====================================================
 
-export const calculateUsableBalance = (
-  wallet: {
-    winningBalance: number;
-    depositBalance: number;
-    bonusBalance: number;
-    referralBalance: number;
-  }
+export const calculateTotalBalance = (
+  wallet?: {
+    winningBalance?: number;
+    depositBalance?: number;
+    bonusBalance?: number;
+    referralBalance?: number;
+  } | null
 ): number => {
 
   if (!wallet) return 0;
 
-  const depositBalance =
-    wallet.depositBalance || 0;
-
-  const winningBalance =
-    wallet.winningBalance || 0;
-
-  const referralBalance =
-    wallet.referralBalance || 0;
-
-  // ONLY 10% BONUS USABLE
-  const usableBonus =
-    Math.floor(
-      (wallet.bonusBalance || 0) * 0.1
-    );
-
   return (
-    depositBalance +
-    winningBalance +
-    referralBalance +
-    usableBonus
+    (wallet.winningBalance || 0) +
+    (wallet.depositBalance || 0) +
+    (wallet.bonusBalance || 0) +
+    (wallet.referralBalance || 0)
   );
 };
+
 
 // =====================================================
 // DEDUCT BALANCE FOR GAMEPLAY
