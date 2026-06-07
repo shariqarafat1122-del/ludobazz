@@ -132,6 +132,8 @@ export default function App() {
                   <Route path="/games/color-prediction" element={<ColorPrediction />} />
                   <Route path="/games/DragonTiger"      element={<DragonTigerPage />} />
                   <Route path="/games/ludo"             element={<LudoLobby />} />
+                  <Route path="/games/NineCardLobby"    element={<NineCardLobby />} />
+                  <Route path="/games/NineCard"    element={<NineCard />} />
           
 
                   {/* 🔐 Admin */}
