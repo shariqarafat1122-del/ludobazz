@@ -134,12 +134,23 @@ export interface HandResult {
   label: string;       // human-readable
 }
 
-// Private deck doc — stored separately so players can't read each other's cards
-export interface DeckDoc {
+// Per-player card doc — sub-collection mein store hota hai
+// Path: ninecard_decks/{tableId}/cards/{role}
+// Player 1 sirf apna doc read kar sakta hai, Player 2 sirf apna
+export interface PlayerCardDoc {
   tableId: string;
-  player1Cards: Card[];   // exactly 2
-  player2Cards: Card[];   // exactly 2
-  remainingDeck: Card[];
+  role: PlayerRole;        // "player1" | "player2"
+  uid: string;             // owner ka UID — Firestore rule mein verify hoga
+  cards: Card[];           // exactly 2 cards
+  createdAt: Timestamp | FieldValue;
+}
+
+// Showdown ke liye admin dono read karta hai — alag private doc
+// Path: ninecard_decks/{tableId}/showdown/result
+export interface ShowdownDeckDoc {
+  tableId: string;
+  player1Cards: Card[];
+  player2Cards: Card[];
   createdAt: Timestamp | FieldValue;
 }
 
@@ -497,33 +508,88 @@ export async function payBoot(
 }
 
 /**
- * Deal cards (called by admin or auto-triggered when phase becomes "playing").
- * Writes encrypted deck to ninecard_decks sub-collection.
+ * Deal cards — Sub-collection approach (SECURE).
  *
- * In production: move this to a Cloud Function for true server-side dealing.
+ * Structure:
+ *   ninecard_decks/{tableId}/cards/player1  ← sirf Player 1 read kar sake
+ *   ninecard_decks/{tableId}/cards/player2  ← sirf Player 2 read kar sake
+ *   ninecard_decks/{tableId}/showdown/result ← sirf admin reads (showdown pe)
+ *
+ * Firestore Rules:
+ *   - cards/player1 → sirf wahi user read kare jiska UID table.player1.uid se match ho
+ *   - cards/player2 → sirf wahi user read kare jiska UID table.player2.uid se match ho
+ *   - showdown/result → sirf admin
  */
 export async function dealRound(tableId: string): Promise<void> {
   const tableRef = doc(db, NINE_CARD_COLLECTIONS.TABLES, tableId);
-  const deckRef = doc(db, NINE_CARD_COLLECTIONS.DECKS, tableId);
 
   const snap = await getDoc(tableRef);
   if (!snap.exists()) throw new Error("Table not found");
   const table = snap.data() as TableDoc;
 
   if (table.phase !== "playing") throw new Error("Table not in playing phase");
+  if (!table.player1 || !table.player2) throw new Error("Both players required");
 
+  // Already dealt check — prevent re-dealing
+  const existingRef = doc(
+    db,
+    NINE_CARD_COLLECTIONS.DECKS, tableId,
+    "cards", "player1"
+  );
+  const existingSnap = await getDoc(existingRef);
+  if (existingSnap.exists()) return; // Already dealt, ignore
+
+  // Shuffle and deal
   const deck = shuffleDeck(buildDeck());
-  const { player1Cards, player2Cards, remaining } = dealCards(deck);
+  const { player1Cards, player2Cards } = dealCards(deck);
 
-  const deckDoc: DeckDoc = {
+  // Player 1 ka card doc — sirf Player 1 read kar sakta hai
+  const p1DocRef = doc(
+    db,
+    NINE_CARD_COLLECTIONS.DECKS, tableId,
+    "cards", "player1"
+  );
+  const p1Doc: PlayerCardDoc = {
     tableId,
-    player1Cards,
-    player2Cards,
-    remainingDeck: remaining,
+    role: "player1",
+    uid: table.player1.uid,   // Firestore rule is UID se verify karega
+    cards: player1Cards,
     createdAt: serverTimestamp(),
   };
 
-  await setDoc(deckRef, deckDoc);
+  // Player 2 ka card doc — sirf Player 2 read kar sakta hai
+  const p2DocRef = doc(
+    db,
+    NINE_CARD_COLLECTIONS.DECKS, tableId,
+    "cards", "player2"
+  );
+  const p2Doc: PlayerCardDoc = {
+    tableId,
+    role: "player2",
+    uid: table.player2.uid,   // Firestore rule is UID se verify karega
+    cards: player2Cards,
+    createdAt: serverTimestamp(),
+  };
+
+  // Showdown doc — dono ke cards yahan hain, sirf admin read kare
+  const showdownRef = doc(
+    db,
+    NINE_CARD_COLLECTIONS.DECKS, tableId,
+    "showdown", "result"
+  );
+  const showdownDoc: ShowdownDeckDoc = {
+    tableId,
+    player1Cards,
+    player2Cards,
+    createdAt: serverTimestamp(),
+  };
+
+  // Teeno ek saath likhte hain — atomic nahi (Cloud Function mein transaction use karo)
+  await Promise.all([
+    setDoc(p1DocRef, p1Doc),
+    setDoc(p2DocRef, p2Doc),
+    setDoc(showdownRef, showdownDoc),
+  ]);
 }
 
 /**
@@ -632,237 +698,4 @@ export async function playerPack(
 
     const opponentRole: PlayerRole = role === "player1" ? "player2" : "player1";
     const opponent = table[opponentRole]!;
-    const player = table[role]!;
-
-    const historyEntry: MatchHistoryEntry = {
-      round: table.roundNumber,
-      winnerId: opponent.uid,
-      winnerName: opponent.displayName,
-      winReason: `${player.displayName} packed/folded`,
-      potAmount: table.pot,
-      timestamp: serverTimestamp(),
-    };
-
-    tx.update(tableRef, {
-      [`${role}.hasFolded`]: true,
-      [`${role}.lastAction`]: "pack",
-      phase: "finished",
-      winner: opponent.uid,
-      winReason: `${player.displayName} packed`,
-      matchHistory: [...table.matchHistory, historyEntry],
-      actionCount: table.actionCount + 1,
-      lastActionAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-  });
-}
-
-/**
- * Request show.
- * Only allowed after current player has matched the call amount.
- * Triggers card reveal and winner resolution.
- */
-export async function playerShow(
-  tableId: string,
-  uid: string,
-  role: PlayerRole
-): Promise<void> {
-  const tableRef = doc(db, NINE_CARD_COLLECTIONS.TABLES, tableId);
-  const deckRef = doc(db, NINE_CARD_COLLECTIONS.DECKS, tableId);
-
-  await runTransaction(db, async (tx) => {
-    const [snap, deckSnap] = await Promise.all([
-      tx.get(tableRef),
-      tx.get(deckRef),
-    ]);
-
-    if (!snap.exists()) throw new Error("Table not found");
-    if (!deckSnap.exists()) throw new Error("Deck not found");
-
-    const table = snap.data() as TableDoc;
-    const deck = deckSnap.data() as DeckDoc;
-
-    validateTurn(table, uid, role);
-    if (table.phase !== "playing") throw new Error("Game not active");
-
-    const player = table[role]!;
-    const opponentRole: PlayerRole = role === "player1" ? "player2" : "player1";
-    const opponent = table[opponentRole]!;
-
-    // Validate: player must have matched the call amount
-    if (player.currentBet < table.currentCallAmount) {
-      throw new Error("Must match call amount before showing");
-    }
-
-    // Resolve showdown server-side
-    const result = resolveShowdown(
-      deck.player1Cards,
-      deck.player2Cards,
-      table.player1!.uid,
-      table.player2!.uid
-    );
-
-    const historyEntry: MatchHistoryEntry = {
-      round: table.roundNumber,
-      winnerId: result.winnerId ?? "draw",
-      winnerName:
-        result.winnerId === table.player1?.uid
-          ? table.player1.displayName
-          : result.winnerId === table.player2?.uid
-          ? table.player2.displayName
-          : "Draw",
-      winReason: result.winReason,
-      potAmount: table.pot,
-      timestamp: serverTimestamp(),
-    };
-
-    tx.update(tableRef, {
-      phase: "showdown",
-      showdownResult: result,
-      winner: result.winnerId,
-      winReason: result.winReason,
-      [`${role}.lastAction`]: "show",
-      [`opponent${opponentRole}.lastAction`]: "show",
-      matchHistory: [...table.matchHistory, historyEntry],
-      actionCount: table.actionCount + 1,
-      lastActionAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-  });
-}
-
-// ─────────────────────────────────────────────
-// 7. ADMIN ACTIONS
-// ─────────────────────────────────────────────
-
-/**
- * Admin: start game manually.
- */
-export async function adminStartGame(tableId: string): Promise<void> {
-  const ref = doc(db, NINE_CARD_COLLECTIONS.TABLES, tableId);
-  await updateDoc(ref, {
-    phase: "boot",
-    status: "in_game",
-    updatedAt: serverTimestamp(),
-  });
-}
-
-/**
- * Admin: end game / reset table.
- */
-export async function adminEndGame(tableId: string): Promise<void> {
-  const ref = doc(db, NINE_CARD_COLLECTIONS.TABLES, tableId);
-  await updateDoc(ref, {
-    phase: "waiting",
-    status: "open",
-    player1: null,
-    player2: null,
-    pot: 0,
-    currentCallAmount: 0,
-    winner: null,
-    winReason: null,
-    showdownResult: null,
-    turnOf: null,
-    updatedAt: serverTimestamp(),
-  });
-}
-
-// ─────────────────────────────────────────────
-// 8. CARD FETCHING (per-player, secure)
-// ─────────────────────────────────────────────
-
-/**
- * Fetch own cards from the deck doc.
- * Firestore Security Rules must restrict this so:
- *   - player1 can only read player1Cards
- *   - player2 can only read player2Cards
- *
- * In this client implementation, we return only the requesting player's cards.
- * Server-side: Use Firestore field-level security or a Cloud Function.
- */
-export async function fetchMyCards(
-  tableId: string,
-  role: PlayerRole
-): Promise<Card[]> {
-  const deckRef = doc(db, NINE_CARD_COLLECTIONS.DECKS, tableId);
-  const snap = await getDoc(deckRef);
-  if (!snap.exists()) return [];
-
-  const deck = snap.data() as DeckDoc;
-  return role === "player1" ? deck.player1Cards : deck.player2Cards;
-}
-
-// ─────────────────────────────────────────────
-// 9. ANTI-CHEAT / VALIDATION HELPERS
-// ─────────────────────────────────────────────
-
-/**
- * Validate that it is the player's turn.
- * Throws if not.
- */
-function validateTurn(table: TableDoc, uid: string, role: PlayerRole): void {
-  const player = table[role];
-  if (!player) throw new Error("Player not in this table");
-  if (player.uid !== uid) throw new Error("UID mismatch");
-  if (table.turnOf !== role) throw new Error("Not your turn");
-  if (player.hasFolded) throw new Error("You have already folded");
-}
-
-/**
- * Check if a user is admin.
- * Reads from "users" collection — same pattern as admin.ts in this project.
- * Admin users have isAdmin: true field in their Firestore user document.
- * Banned admins are not allowed (isBanned check).
- */
-export async function isAdmin(uid: string): Promise<boolean> {
-  const ref = doc(db, "users", uid);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return false;
-  const data = snap.data();
-  return data?.isAdmin === true && data?.isBanned !== true;
-}
-
-// ─────────────────────────────────────────────
-// 10. UTILITY HELPERS
-// ─────────────────────────────────────────────
-
-/**
- * Get opponent role.
- */
-export function getOpponentRole(role: PlayerRole): PlayerRole {
-  return role === "player1" ? "player2" : "player1";
-}
-
-/**
- * Get player from table by UID.
- */
-export function getPlayerByUid(
-  table: TableDoc,
-  uid: string
-): { player: PlayerState; role: PlayerRole } | null {
-  if (table.player1?.uid === uid) return { player: table.player1, role: "player1" };
-  if (table.player2?.uid === uid) return { player: table.player2, role: "player2" };
-  return null;
-}
-
-/**
- * Format currency amount (₹).
- */
-export function formatAmount(amount: number): string {
-  return `₹${amount.toLocaleString("en-IN")}`;
-}
-
-/**
- * Get display label for player status.
- */
-export function getStatusLabel(status: PlayerStatus): string {
-  return status === "blind" ? "BLIND" : "SEEN";
-}
-
-/**
- * Check if show button should be enabled for a player.
- * Show is only allowed after matching current call amount.
- */
-export function canShow(player: PlayerState, currentCallAmount: number): boolean {
-  return player.currentBet >= currentCallAmount && !player.hasFolded;
-}
+    const player = table[role]
