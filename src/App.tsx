@@ -17,7 +17,6 @@ const ColorPrediction    = lazy(() => import('./pages/games/ColorPrediction').th
 const LudoLobby          = lazy(() => import('./pages/games/LudoLobby'));
 const LudoGame           = lazy(() => import('./pages/games/LudoGame'));
 const DiceGame           = lazy(() => import('./pages/games/DiceGame').then(m => ({ default: m.DiceGame })));
-const NineCard           = lazy(() => import('./pages/games/NineCard'));
 const NineCardLobby      = lazy(() => import('./pages/games/NineCardLobby'));
 
 // ─────────────────────────────────────────────
@@ -145,6 +144,7 @@ export default function App() {
                 {/* 🎮 Full-screen Game Pages (NO Layout) */}
                 <Route path="/games/poker/:tableId"      element={<PokerGamePage />} />
                 <Route path="/games/ludo/:tableId"       element={<LudoGame />} />
+                <Route path="/games/NineCard/:tableId"       element={<LudoGame />} />
               </Route>
 
               {/* ── Redirects ── */}
