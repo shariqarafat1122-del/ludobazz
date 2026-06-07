@@ -29,7 +29,7 @@ import {
   joinTable,
   formatAmount,
   NINE_CARD_COLLECTIONS,
-} from "./NineCard";
+} from "../NineCard";
 
 // ─────────────────────────────────────────────
 // TYPES
