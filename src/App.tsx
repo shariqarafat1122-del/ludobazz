@@ -24,10 +24,6 @@ const DiceGame           = lazy(() =>
   import('./pages/games/DiceGame').then(m => ({ default: m.DiceGame }))
 );
 
-// ✅ Nine Card — lazy loaded from pages/ wrappers
-const NineCardLobbyPage = lazy(() => import('./pages/games/NineCardLobbyPage'));
-const NineCardGamePage  = lazy(() => import('./pages/games/NineCardGamePage'))
-
 // ─────────────────────────────────────────────
 // 📄 Main Pages (Lazy)
 // ─────────────────────────────────────────────
@@ -164,11 +160,6 @@ export default function App() {
                   <Route path="/games/DragonTiger"      element={<DragonTigerPage />} />
                   <Route path="/games/ludo"             element={<LudoLobby />} />
 
-                  {/* ✅ Nine Card Lobby — inside MainLayout */}
-                  <Route
-                    path="/games/nine-card"
-                    element={<NineCardLobbyPage />}
-                  />
 
                   {/* 🔐 Admin */}
                   <Route element={<AdminRoute />}>
@@ -186,11 +177,6 @@ export default function App() {
                   element={<LudoGame />}
                 />
 
-                {/* ✅ Nine Card Game — full screen, NO layout */}
-                <Route
-                  path="/games/nine-card/:tableId"
-                  element={<NineCardGamePage />}
-                />
               </Route>
 
               {/* ── Redirects ── */}
