@@ -25,8 +25,8 @@ const DiceGame           = lazy(() =>
 );
 
 // ✅ Nine Card — lazy loaded from pages/ wrappers
-const NineCardLobbyPage  = lazy(() => import('./games/ninecard/components/NineCardLobbyPage'));
-const NineCardGamePage   = lazy(() => import('./games/ninecard/components/NineCardGamePage'));
+const NineCardLobbyPage = lazy(() => import('./pages/games/NineCardLobbyPage'));
+const NineCardGamePage  = lazy(() => import('./pages/games/NineCardGamePage'))
 
 // ─────────────────────────────────────────────
 // 📄 Main Pages (Lazy)
