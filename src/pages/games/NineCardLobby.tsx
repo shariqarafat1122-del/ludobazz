@@ -28,6 +28,7 @@ import {
   deleteTable,
   joinTable,
   formatAmount,
+  NineCard,
   NINE_CARD_COLLECTIONS,
 } from "../../firebase/NineCardb";
 
