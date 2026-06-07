@@ -18,6 +18,7 @@ const LudoLobby          = lazy(() => import('./pages/games/LudoLobby'));
 const LudoGame           = lazy(() => import('./pages/games/LudoGame'));
 const DiceGame           = lazy(() => import('./pages/games/DiceGame').then(m => ({ default: m.DiceGame })));
 const NineCardLobby      = lazy(() => import('./pages/games/NineCardLobby'));
+const NineCardGame      = lazy(() => import('./pages/games/NineCardGame'));
 
 // ─────────────────────────────────────────────
 // 📄 Main Pages (Lazy)
@@ -132,7 +133,7 @@ export default function App() {
                   <Route path="/games/DragonTiger"      element={<DragonTigerPage />} />
                   <Route path="/games/ludo"             element={<LudoLobby />} />
                   <Route path="/games/NineCardLobby"    element={<NineCardLobby />} />
-                  <Route path="/games/NineCard"    element={<NineCard />} />
+                  
           
 
                   {/* 🔐 Admin */}
@@ -144,7 +145,7 @@ export default function App() {
                 {/* 🎮 Full-screen Game Pages (NO Layout) */}
                 <Route path="/games/poker/:tableId"      element={<PokerGamePage />} />
                 <Route path="/games/ludo/:tableId"       element={<LudoGame />} />
-                <Route path="/games/NineCard/:tableId"       element={<LudoGame />} />
+                <Route path="/games/NineCardGame/:tableId" element={<LudoGame />} />
               </Route>
 
               {/* ── Redirects ── */}
