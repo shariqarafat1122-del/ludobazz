@@ -16,8 +16,8 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "../firebase/config"; // src/firebase/config.ts
-import { useAuth } from "../context/AuthContext"; // AuthContext hook
+import { db } from "../../firebase/config"; // src/firebase/config.ts
+import { useAuth } from "../../context/AuthContext"; // AuthContext hook
 import {
   TableDoc,
   PlayerRole,
@@ -35,7 +35,7 @@ import {
   formatAmount,
   canShow,
   NINE_CARD_COLLECTIONS,
-} from "./NineCard";
+} from "../../NineCard";
 
 // ─────────────────────────────────────────────
 // CSS KEYFRAMES (injected once)
