@@ -2,13 +2,10 @@
  * NineCardLobby.tsx
  * ============================================================
  * Admin Lobby + Player Join UI for "9 Card Table"
- *
- * Admin: Create / manage tables.
- * Player: Browse & join available tables.
  * ============================================================
  */
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
   collection,
   onSnapshot,
@@ -16,8 +13,8 @@ import {
   orderBy,
   where,
 } from "firebase/firestore";
-import { db } from "../../firebase/config"; // src/firebase/config.ts
-import { useAuth } from "../../context/AuthContext"; // AuthContext hook
+import { db } from "../../firebase/config";
+import { useAuth } from "../../context/AuthContext";
 import {
   TableDoc,
   TableStatus,
@@ -146,7 +143,7 @@ const CreateTableModal: React.FC<{
 };
 
 // ─────────────────────────────────────────────
-// ADMIN TABLE ROW CONTROLS
+// ADMIN TABLE CONTROLS
 // ─────────────────────────────────────────────
 
 const AdminTableControls: React.FC<{ table: TableDoc }> = ({ table }) => {
@@ -163,7 +160,11 @@ const AdminTableControls: React.FC<{ table: TableDoc }> = ({ table }) => {
     }
   };
 
-  const controlBtn = (label: string, fn: () => Promise<void>, color = "#888") => (
+  const controlBtn = (
+    label: string,
+    fn: () => Promise<void>,
+    color = "#888"
+  ) => (
     <button
       key={label}
       onClick={() => act(label, fn)}
@@ -182,16 +183,33 @@ const AdminTableControls: React.FC<{ table: TableDoc }> = ({ table }) => {
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
       {table.status !== "open" &&
-        controlBtn("ENABLE", () => adminUpdateTable(table.id, { status: "open" }), "#00ff88")}
+        controlBtn(
+          "ENABLE",
+          () => adminUpdateTable(table.id, { status: "open" }),
+          "#00ff88"
+        )}
       {table.status === "open" &&
-        controlBtn("DISABLE", () => adminUpdateTable(table.id, { status: "disabled" }), "#ff4444")}
+        controlBtn(
+          "DISABLE",
+          () => adminUpdateTable(table.id, { status: "disabled" }),
+          "#ff4444"
+        )}
       {table.status !== "locked" &&
-        controlBtn("LOCK", () => adminUpdateTable(table.id, { status: "locked" }), "#ff9900")}
+        controlBtn(
+          "LOCK",
+          () => adminUpdateTable(table.id, { status: "locked" }),
+          "#ff9900"
+        )}
       {table.status === "locked" &&
-        controlBtn("UNLOCK", () => adminUpdateTable(table.id, { status: "open" }), "#00ff88")}
+        controlBtn(
+          "UNLOCK",
+          () => adminUpdateTable(table.id, { status: "open" }),
+          "#00ff88"
+        )}
       {table.phase === "waiting" &&
         controlBtn("START", () => adminStartGame(table.id), "#4488ff")}
-      {table.phase !== "waiting" && table.phase !== "finished" &&
+      {table.phase !== "waiting" &&
+        table.phase !== "finished" &&
         controlBtn("END GAME", () => adminEndGame(table.id), "#ff9900")}
       {controlBtn("DELETE", () => deleteTable(table.id), "#ff2222")}
     </div>
@@ -199,7 +217,7 @@ const AdminTableControls: React.FC<{ table: TableDoc }> = ({ table }) => {
 };
 
 // ─────────────────────────────────────────────
-// SINGLE TABLE CARD — LOBBY
+// TABLE CARD
 // ─────────────────────────────────────────────
 
 const TableCard: React.FC<{
@@ -211,6 +229,8 @@ const TableCard: React.FC<{
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState("");
 
+  const { firebaseUser: joinUser } = useAuth();
+
   const activePlayers = [table.player1, table.player2].filter(Boolean).length;
   const alreadyJoined =
     table.player1?.uid === currentUid || table.player2?.uid === currentUid;
@@ -220,7 +240,6 @@ const TableCard: React.FC<{
     activePlayers < 2 &&
     !alreadyJoined;
 
-  const { firebaseUser: joinUser } = useAuth(); // AuthContext from handleJoin scope
   const handleJoin = async () => {
     if (!joinUser) return;
     setJoining(true);
@@ -246,9 +265,22 @@ const TableCard: React.FC<{
   return (
     <div style={tableCardStyle}>
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+        }}
+      >
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#f5e6c8", letterSpacing: 0.5 }}>
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 700,
+              color: "#f5e6c8",
+              letterSpacing: 0.5,
+            }}
+          >
             {table.name}
           </div>
           <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
@@ -278,7 +310,7 @@ const TableCard: React.FC<{
         </div>
       </div>
 
-      {/* Players */}
+      {/* Player slots */}
       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
         {(["player1", "player2"] as const).map((role) => {
           const p = table[role];
@@ -286,7 +318,9 @@ const TableCard: React.FC<{
             <div key={role} style={playerSlotStyle(!!p)}>
               {p ? (
                 <>
-                  <span style={{ fontSize: 13, color: "#f5e6c8" }}>{p.displayName}</span>
+                  <span style={{ fontSize: 13, color: "#f5e6c8" }}>
+                    {p.displayName}
+                  </span>
                   <span
                     style={{
                       fontSize: 10,
@@ -305,16 +339,22 @@ const TableCard: React.FC<{
         })}
       </div>
 
-      {/* Action */}
       {joinError && <p style={{ ...errorStyle, marginTop: 8 }}>{joinError}</p>}
 
+      {/* Join / Rejoin */}
       {!isAdminUser && (
         <div style={{ marginTop: 12 }}>
           {alreadyJoined ? (
             <button
-              style={{ ...btnStyle, background: "#0a2a1a", color: "#00ff88", width: "100%" }}
+              style={{
+                ...btnStyle,
+                background: "#0a2a1a",
+                color: "#00ff88",
+                width: "100%",
+              }}
               onClick={() => {
-                const role = table.player1?.uid === currentUid ? "player1" : "player2";
+                const role =
+                  table.player1?.uid === currentUid ? "player1" : "player2";
                 onJoin(table.id, role);
               }}
             >
@@ -322,32 +362,47 @@ const TableCard: React.FC<{
             </button>
           ) : canJoin ? (
             <button
-              style={{ ...btnStyle, background: "#0a1a2a", color: "#4488ff", width: "100%" }}
+              style={{
+                ...btnStyle,
+                background: "#0a1a2a",
+                color: "#4488ff",
+                width: "100%",
+              }}
               onClick={handleJoin}
               disabled={joining}
             >
-              {joining ? "JOINING..." : `JOIN — ${formatAmount(table.bootAmount)} BOOT`}
+              {joining
+                ? "JOINING..."
+                : `JOIN — ${formatAmount(table.bootAmount)} BOOT`}
             </button>
           ) : (
-            <button style={{ ...btnStyle, background: "#1a1a1a", color: "#444", width: "100%", cursor: "not-allowed" }} disabled>
+            <button
+              style={{
+                ...btnStyle,
+                background: "#1a1a1a",
+                color: "#444",
+                width: "100%",
+                cursor: "not-allowed",
+              }}
+              disabled
+            >
               {table.phase !== "waiting" ? "GAME IN PROGRESS" : "TABLE FULL"}
             </button>
           )}
         </div>
       )}
 
-      {/* Admin Controls */}
       {isAdminUser && <AdminTableControls table={table} />}
     </div>
   );
 };
 
 // ─────────────────────────────────────────────
-// MAIN LOBBY COMPONENT
+// MAIN LOBBY
 // ─────────────────────────────────────────────
 
 const NineCardLobby: React.FC<LobbyProps> = ({ onJoinTable }) => {
-  const { firebaseUser, isAdmin: isAdminUser } = useAuth(); // AuthContext se uid + admin status
+  const { firebaseUser, isAdmin: isAdminUser } = useAuth();
   const [tables, setTables] = useState<TableDoc[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -355,7 +410,6 @@ const NineCardLobby: React.FC<LobbyProps> = ({ onJoinTable }) => {
 
   const uid = firebaseUser?.uid ?? "";
 
-  // Real-time tables listener
   useEffect(() => {
     const q = query(
       collection(db, NINE_CARD_COLLECTIONS.TABLES),
@@ -380,7 +434,6 @@ const NineCardLobby: React.FC<LobbyProps> = ({ onJoinTable }) => {
 
   return (
     <div style={lobbyContainer}>
-      {/* Background felt texture */}
       <div style={feltOverlay} />
 
       {/* Header */}
@@ -394,7 +447,12 @@ const NineCardLobby: React.FC<LobbyProps> = ({ onJoinTable }) => {
         </div>
         {isAdminUser && (
           <button
-            style={{ ...btnStyle, background: "#1a3a1a", color: "#00ff88", padding: "10px 24px" }}
+            style={{
+              ...btnStyle,
+              background: "#1a3a1a",
+              color: "#00ff88",
+              padding: "10px 24px",
+            }}
             onClick={() => setShowCreateModal(true)}
           >
             + CREATE TABLE
@@ -402,7 +460,7 @@ const NineCardLobby: React.FC<LobbyProps> = ({ onJoinTable }) => {
         )}
       </div>
 
-      {/* Admin badge */}
+      {/* Admin banner */}
       {isAdminUser && (
         <div style={adminBannerStyle}>
           ⚙️ Admin Mode — You can create and manage tables
@@ -425,11 +483,12 @@ const NineCardLobby: React.FC<LobbyProps> = ({ onJoinTable }) => {
           </button>
         ))}
         <span style={{ marginLeft: "auto", color: "#555", fontSize: 13 }}>
-          {filteredTables.length} table{filteredTables.length !== 1 ? "s" : ""}
+          {filteredTables.length} table
+          {filteredTables.length !== 1 ? "s" : ""}
         </span>
       </div>
 
-      {/* Table Grid */}
+      {/* Grid */}
       {loading ? (
         <div style={loadingStyle}>
           <div style={spinnerStyle} />
@@ -439,7 +498,9 @@ const NineCardLobby: React.FC<LobbyProps> = ({ onJoinTable }) => {
         <div style={emptyStyle}>
           <div style={{ fontSize: 48 }}>🃏</div>
           <p style={{ color: "#555", marginTop: 12 }}>
-            {isAdminUser ? "No tables yet. Create one above." : "No tables available. Check back soon."}
+            {isAdminUser
+              ? "No tables yet. Create one above."
+              : "No tables available. Check back soon."}
           </p>
         </div>
       ) : (
@@ -463,7 +524,6 @@ const NineCardLobby: React.FC<LobbyProps> = ({ onJoinTable }) => {
         <span>Play Responsibly</span>
       </div>
 
-      {/* Modals */}
       {showCreateModal && isAdminUser && (
         <CreateTableModal
           adminUid={uid}
@@ -496,11 +556,8 @@ const feltOverlay: React.CSSProperties = {
     radial-gradient(ellipse at 20% 20%, #0a1f0a 0%, transparent 60%),
     radial-gradient(ellipse at 80% 80%, #0a1a0a 0%, transparent 60%),
     repeating-linear-gradient(
-      45deg,
-      transparent,
-      transparent 2px,
-      rgba(0,80,0,0.03) 2px,
-      rgba(0,80,0,0.03) 4px
+      45deg, transparent, transparent 2px,
+      rgba(0,80,0,0.03) 2px, rgba(0,80,0,0.03) 4px
     )
   `,
   pointerEvents: "none",
