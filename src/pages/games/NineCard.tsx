@@ -35,7 +35,7 @@ import {
   formatAmount,
   canShow,
   NINE_CARD_COLLECTIONS,
-} from "../../NineCard";
+} from "../../NineCardb";
 
 // ─────────────────────────────────────────────
 // CSS KEYFRAMES (injected once)
