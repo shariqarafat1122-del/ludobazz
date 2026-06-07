@@ -124,7 +124,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         <p className="text-4xl font-bold text-white mb-4">
-          {formatCurrency(calculateTotalBalance(wallet))}
+         {formatCurrency(calculateTotalBalance(wallet ?? null))}
         </p>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
