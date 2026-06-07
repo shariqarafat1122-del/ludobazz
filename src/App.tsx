@@ -1,3 +1,5 @@
+// src/App.tsx
+
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -13,30 +15,64 @@ const DragonTigerPage    = lazy(() => import('./pages/games/DragonTiger'));
 const AndarBaharPage     = lazy(() => import('./pages/games/AndarBahar'));
 const PokerGamePage      = lazy(() => import('./pages/games/PokerGame'));
 const PokerLobbyPage     = lazy(() => import('./pages/games/PokerLobby'));
-const ColorPrediction    = lazy(() => import('./pages/games/ColorPrediction').then(m => ({ default: m.ColorPrediction })));
+const ColorPrediction    = lazy(() =>
+  import('./pages/games/ColorPrediction').then(m => ({ default: m.ColorPrediction }))
+);
 const LudoLobby          = lazy(() => import('./pages/games/LudoLobby'));
 const LudoGame           = lazy(() => import('./pages/games/LudoGame'));
-const DiceGame           = lazy(() => import('./pages/games/DiceGame').then(m => ({ default: m.DiceGame })));
-const NineCardLobby      = lazy(() => import('./pages/games/NineCardLobby'));
-const NineCardGame      = lazy(() => import('./pages/games/NineCardGame'));
+const DiceGame           = lazy(() =>
+  import('./pages/games/DiceGame').then(m => ({ default: m.DiceGame }))
+);
+
+// ✅ Nine Card — lazy loaded from pages/ wrappers
+const NineCardLobbyPage  = lazy(() => import('./pages/games/NineCardLobbyPage'));
+const NineCardGamePage   = lazy(() => import('./pages/games/NineCardGamePage'));
 
 // ─────────────────────────────────────────────
 // 📄 Main Pages (Lazy)
 // ─────────────────────────────────────────────
-const Login              = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
-const Signup             = lazy(() => import('./pages/Signup').then(m => ({ default: m.Signup })));
-const Dashboard          = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
-const Wallet             = lazy(() => import('./pages/Wallet').then(m => ({ default: m.Wallet })));
-const AddMoney           = lazy(() => import('./pages/AddMoney').then(m => ({ default: m.AddMoney })));
-const Withdrawal         = lazy(() => import('./pages/Withdrawal').then(m => ({ default: m.Withdrawal })));
-const WithdrawalHistory  = lazy(() => import('./pages/WithdrawalHistory').then(m => ({ default: m.WithdrawalHistory })));
-const TransactionHistory = lazy(() => import('./pages/TransactionHistory').then(m => ({ default: m.TransactionHistory })));
-const Referral           = lazy(() => import('./pages/Referral').then(m => ({ default: m.Referral })));
-const Profile            = lazy(() => import('./pages/Profile').then(m => ({ default: m.Profile })));
-const Notifications      = lazy(() => import('./pages/Notifications').then(m => ({ default: m.Notifications })));
-const AdminDashboard     = lazy(() => import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
-const Matchmaking        = lazy(() => import('./pages/Matchmaking').then(m => ({ default: m.Matchmaking })));
-const GameRoom           = lazy(() => import('./pages/GameRoom').then(m => ({ default: m.GameRoom })));
+const Login              = lazy(() =>
+  import('./pages/Login').then(m => ({ default: m.Login }))
+);
+const Signup             = lazy(() =>
+  import('./pages/Signup').then(m => ({ default: m.Signup }))
+);
+const Dashboard          = lazy(() =>
+  import('./pages/Dashboard').then(m => ({ default: m.Dashboard }))
+);
+const Wallet             = lazy(() =>
+  import('./pages/Wallet').then(m => ({ default: m.Wallet }))
+);
+const AddMoney           = lazy(() =>
+  import('./pages/AddMoney').then(m => ({ default: m.AddMoney }))
+);
+const Withdrawal         = lazy(() =>
+  import('./pages/Withdrawal').then(m => ({ default: m.Withdrawal }))
+);
+const WithdrawalHistory  = lazy(() =>
+  import('./pages/WithdrawalHistory').then(m => ({ default: m.WithdrawalHistory }))
+);
+const TransactionHistory = lazy(() =>
+  import('./pages/TransactionHistory').then(m => ({ default: m.TransactionHistory }))
+);
+const Referral           = lazy(() =>
+  import('./pages/Referral').then(m => ({ default: m.Referral }))
+);
+const Profile            = lazy(() =>
+  import('./pages/Profile').then(m => ({ default: m.Profile }))
+);
+const Notifications      = lazy(() =>
+  import('./pages/Notifications').then(m => ({ default: m.Notifications }))
+);
+const AdminDashboard     = lazy(() =>
+  import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard }))
+);
+const Matchmaking        = lazy(() =>
+  import('./pages/Matchmaking').then(m => ({ default: m.Matchmaking }))
+);
+const GameRoom           = lazy(() =>
+  import('./pages/GameRoom').then(m => ({ default: m.GameRoom }))
+);
 
 // ─────────────────────────────────────────────
 // ⏳ Global Loading Fallback
@@ -54,7 +90,6 @@ function PageLoader() {
         gap: '16px',
       }}
     >
-      {/* Spinner */}
       <div
         style={{
           width: '48px',
@@ -68,8 +103,6 @@ function PageLoader() {
       <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>
         Loading...
       </p>
-
-      {/* Inline keyframe for spinner */}
       <style>{`
         @keyframes spin {
           to { transform: rotate(360deg); }
@@ -99,8 +132,6 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <BrowserRouter>
-
-          {/* ✅ Suspense wraps ALL routes */}
           <Suspense fallback={<PageLoader />}>
             <Routes>
 
@@ -110,7 +141,7 @@ export default function App() {
                 <Route path="/signup" element={<Signup />} />
               </Route>
 
-              {/* ── Protected + MainLayout (Header + Sidebar) ── */}
+              {/* ── Protected + MainLayout ── */}
               <Route element={<ProtectedRoute />}>
                 <Route element={<MainLayout />}>
                   <Route path="/dashboard"          element={<Dashboard />} />
@@ -125,16 +156,19 @@ export default function App() {
                   <Route path="/matchmaking"        element={<Matchmaking />} />
                   <Route path="/game-room/:roomId"  element={<GameRoom />} />
 
-                  {/* 🎮 Game Lobbies */}
+                  {/* 🎮 Game Lobbies (inside MainLayout) */}
                   <Route path="/games/poker"            element={<PokerLobbyPage />} />
                   <Route path="/games/andar-bahar"      element={<AndarBaharPage />} />
                   <Route path="/games/dice"             element={<DiceGame />} />
                   <Route path="/games/color-prediction" element={<ColorPrediction />} />
                   <Route path="/games/DragonTiger"      element={<DragonTigerPage />} />
                   <Route path="/games/ludo"             element={<LudoLobby />} />
-                  <Route path="/games/NineCardLobby"    element={<NineCardLobby />} />
-                  
-          
+
+                  {/* ✅ Nine Card Lobby — inside MainLayout */}
+                  <Route
+                    path="/games/nine-card"
+                    element={<NineCardLobbyPage />}
+                  />
 
                   {/* 🔐 Admin */}
                   <Route element={<AdminRoute />}>
@@ -143,9 +177,20 @@ export default function App() {
                 </Route>
 
                 {/* 🎮 Full-screen Game Pages (NO Layout) */}
-                <Route path="/games/poker/:tableId"      element={<PokerGamePage />} />
-                <Route path="/games/ludo/:tableId"       element={<LudoGame />} />
-                <Route path="/games/NineCardGame/:tableId" element={<LudoGame />} />
+                <Route
+                  path="/games/poker/:tableId"
+                  element={<PokerGamePage />}
+                />
+                <Route
+                  path="/games/ludo/:tableId"
+                  element={<LudoGame />}
+                />
+
+                {/* ✅ Nine Card Game — full screen, NO layout */}
+                <Route
+                  path="/games/nine-card/:tableId"
+                  element={<NineCardGamePage />}
+                />
               </Route>
 
               {/* ── Redirects ── */}
@@ -154,7 +199,6 @@ export default function App() {
 
             </Routes>
           </Suspense>
-
         </BrowserRouter>
 
         <Toaster
